@@ -62,10 +62,13 @@
 
         loadSettingsIntoForm();
         renderDashboard();
+
+        // Inicia sincronização em nuvem com o Firebase Firestore
+        initFirebaseSync();
     }
 
     // ============================
-    //  PERSISTENCE
+    //  PERSISTENCE & FIREBASE SYNC
     // ============================
     function loadTrips() {
         try {
@@ -73,8 +76,31 @@
         } catch { return []; }
     }
 
-    function saveTrips() {
+    function saveTripsLocal() {
         localStorage.setItem(TRIPS_KEY, JSON.stringify(trips));
+    }
+
+    function saveTrips() {
+        saveTripsLocal();
+    }
+
+    function saveTripCloud(trip) {
+        saveTripsLocal();
+        if (db && isFirebaseReady) {
+            db.collection('trips').doc(trip.id).set(trip).catch(err => {
+                console.error('Erro ao salvar viagem no Firestore:', err);
+            });
+        }
+    }
+
+    function deleteTripCloud(tripId) {
+        trips = trips.filter(t => t.id !== tripId);
+        saveTripsLocal();
+        if (db && isFirebaseReady) {
+            db.collection('trips').doc(tripId).delete().catch(err => {
+                console.error('Erro ao excluir viagem no Firestore:', err);
+            });
+        }
     }
 
     function loadIncomes() {
@@ -83,8 +109,31 @@
         } catch { return []; }
     }
 
-    function saveIncomes() {
+    function saveIncomesLocal() {
         localStorage.setItem(INCOMES_KEY, JSON.stringify(incomes));
+    }
+
+    function saveIncomes() {
+        saveIncomesLocal();
+    }
+
+    function saveIncomeCloud(income) {
+        saveIncomesLocal();
+        if (db && isFirebaseReady) {
+            db.collection('incomes').doc(income.id).set(income).catch(err => {
+                console.error('Erro ao salvar entrada no Firestore:', err);
+            });
+        }
+    }
+
+    function deleteIncomeCloud(incomeId) {
+        incomes = incomes.filter(i => i.id !== incomeId);
+        saveIncomesLocal();
+        if (db && isFirebaseReady) {
+            db.collection('incomes').doc(incomeId).delete().catch(err => {
+                console.error('Erro ao excluir entrada no Firestore:', err);
+            });
+        }
     }
 
     function loadSettings() {
@@ -94,8 +143,113 @@
         } catch { return { ...DEFAULT_SETTINGS }; }
     }
 
-    function saveSettings() {
+    function saveSettingsLocal() {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    }
+
+    function saveSettings() {
+        saveSettingsLocal();
+        saveSettingsCloud(settings);
+    }
+
+    function saveSettingsCloud(st) {
+        saveSettingsLocal();
+        if (db && isFirebaseReady) {
+            db.collection('settings').doc('global').set(st).catch(err => {
+                console.error('Erro ao salvar configurações no Firestore:', err);
+            });
+        }
+    }
+
+    // ============================
+    //  FIREBASE CLOUD LISTENERS
+    // ============================
+    function initFirebaseSync() {
+        if (typeof db === 'undefined' || !db) {
+            updateCloudStatus('error', 'Nuvem Não Carregada');
+            return;
+        }
+
+        updateCloudStatus('connecting', 'Conectando Nuvem...');
+
+        // 1. Escuta em tempo real de viagens
+        db.collection('trips').onSnapshot((snapshot) => {
+            const remoteTrips = [];
+            snapshot.forEach(doc => {
+                remoteTrips.push({ id: doc.id, ...doc.data() });
+            });
+
+            // Se o Firestore estava vazio e temos dados locais, faz o upload inicial
+            if (remoteTrips.length === 0 && trips.length > 0) {
+                console.log('Sincronizando dados locais existentes para o Firestore...');
+                trips.forEach(t => db.collection('trips').doc(t.id).set(t));
+            } else if (remoteTrips.length > 0) {
+                trips = remoteTrips;
+                saveTripsLocal();
+                refreshCurrentView();
+            }
+            updateCloudStatus('online', 'Nuvem Conectada');
+        }, (error) => {
+            console.error('Erro na sincronização de viagens:', error);
+            updateCloudStatus('error', 'Offline / Erro Nuvem');
+        });
+
+        // 2. Escuta em tempo real de entradas (Dia 15)
+        db.collection('incomes').onSnapshot((snapshot) => {
+            const remoteIncomes = [];
+            snapshot.forEach(doc => {
+                remoteIncomes.push({ id: doc.id, ...doc.data() });
+            });
+
+            if (remoteIncomes.length === 0 && incomes.length > 0) {
+                incomes.forEach(i => db.collection('incomes').doc(i.id).set(i));
+            } else if (remoteIncomes.length > 0) {
+                incomes = remoteIncomes;
+                saveIncomesLocal();
+                refreshCurrentView();
+            }
+        }, (error) => {
+            console.error('Erro na sincronização de entradas:', error);
+        });
+
+        // 3. Escuta em tempo real de configurações
+        db.collection('settings').doc('global').onSnapshot((doc) => {
+            if (doc.exists) {
+                settings = { ...DEFAULT_SETTINGS, ...doc.data() };
+                saveSettingsLocal();
+                loadSettingsIntoForm();
+                refreshCurrentView();
+            } else if (settings) {
+                db.collection('settings').doc('global').set(settings);
+            }
+        }, (error) => {
+            console.error('Erro na sincronização de configurações:', error);
+        });
+    }
+
+    function updateCloudStatus(status, text) {
+        const badge = document.getElementById('cloud-status-badge');
+        const dot = badge ? badge.querySelector('.cloud-dot') : null;
+        const txt = document.getElementById('cloud-status-text');
+
+        if (dot) {
+            dot.className = 'cloud-dot';
+            if (status === 'connecting') dot.classList.add('connecting');
+            if (status === 'error') dot.classList.add('error');
+        }
+        if (txt) txt.textContent = text;
+    }
+
+    function refreshCurrentView() {
+        const activePage = document.querySelector('.page.active');
+        if (!activePage) return;
+        const pageId = activePage.id.replace('page-', '');
+
+        if (pageId === 'dashboard') renderDashboard();
+        if (pageId === 'incomes') renderIncomesTable();
+        if (pageId === 'trips') renderAllTripsTable();
+        if (pageId === 'stores') renderStoresPage();
+        if (pageId === 'maintenance') renderMaintenancePage();
     }
 
     // ============================
@@ -659,7 +813,7 @@
                 showToast('Entrada salva com sucesso!');
             }
 
-            saveIncomes();
+            saveIncomeCloud(newIncome);
             form.reset();
             container.style.display = 'none';
             renderIncomesTable();
@@ -733,8 +887,7 @@
         tbody.querySelectorAll('.btn-del-income').forEach(b => {
             b.addEventListener('click', () => {
                 showConfirm('Excluir Entrada', 'Deseja excluir esta entrada?', () => {
-                    incomes = incomes.filter(i => i.id !== b.dataset.id);
-                    saveIncomes();
+                    deleteIncomeCloud(b.dataset.id);
                     renderIncomesTable();
                     renderDashboard();
                     showToast('Entrada excluída.');
@@ -885,7 +1038,7 @@
             showToast('Viagem cadastrada com sucesso!');
         }
 
-        saveTrips();
+        saveTripCloud(trip);
         showPage('trips');
     }
 
@@ -1024,8 +1177,7 @@
         tbody.querySelectorAll('.btn-del-trip').forEach(b => {
             b.addEventListener('click', () => {
                 showConfirm('Excluir Viagem', 'Tem certeza que deseja excluir esta viagem?', () => {
-                    trips = trips.filter(t => t.id !== b.dataset.id);
-                    saveTrips();
+                    deleteTripCloud(b.dataset.id);
                     renderAllTripsTable();
                     renderDashboard();
                     showToast('Viagem excluída.');
@@ -1554,18 +1706,20 @@
 
                         const alreadyExists = incomes.some(i => i.date === targetDate);
                         if (!alreadyExists) {
-                            incomes.push({
+                            const newInc = {
                                 id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
                                 date: targetDate,
                                 amount,
                                 category: 'Adiantamento Dia 15',
                                 description: settings.defaultIncomeDesc || 'Adiantamento Viagens - Dia 15',
                                 createdAt: new Date().toISOString()
-                            });
+                            };
+                            incomes.push(newInc);
+                            saveIncomeCloud(newInc);
                             createdCount++;
                         }
                     }
-                    saveIncomes();
+                    saveIncomesLocal();
                     renderDashboard();
                     showToast(`${createdCount} entradas geradas com sucesso!`);
                 }
@@ -1629,18 +1783,20 @@
                         // Check if already exists for this exact day
                         const alreadyExists = incomes.some(i => i.date === targetDate);
                         if (!alreadyExists) {
-                            incomes.push({
+                            const newInc = {
                                 id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
                                 date: targetDate,
                                 amount,
                                 category: 'Adiantamento Dia 15',
                                 description: settings.defaultIncomeDesc || 'Adiantamento Viagens - Dia 15',
                                 createdAt: new Date().toISOString()
-                            });
+                            };
+                            incomes.push(newInc);
+                            saveIncomeCloud(newInc);
                             createdCount++;
                         }
                     }
-                    saveIncomes();
+                    saveIncomesLocal();
                     renderDashboard();
                     showToast(`${createdCount} entradas geradas com sucesso!`);
                 }

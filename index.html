@@ -20,6 +20,12 @@
                     <span class="logo-sub">Gestão de Viagens</span>
                 </div>
             </div>
+            
+            <!-- Cloud Firebase Status Indicator -->
+            <div id="cloud-status-badge" class="cloud-status-badge">
+                <span class="cloud-dot connecting"></span>
+                <span id="cloud-status-text">Conectando Firebase...</span>
+            </div>
             <nav>
                 <button class="nav-btn active" data-page="dashboard">
                     <span class="nav-icon">📊</span> Dashboard
@@ -845,6 +851,11 @@
 
     <!-- Toast Notification -->
     <div id="toast" class="toast" style="display:none;"></div>
+
+    <!-- Firebase SDK Compat & Config -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>

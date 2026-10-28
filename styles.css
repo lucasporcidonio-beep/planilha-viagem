@@ -95,6 +95,47 @@ body {
     color: #64748b;
 }
 
+/* ===== Cloud Status Badge ===== */
+.cloud-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    padding: 0.4rem 0.65rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #cbd5e1;
+}
+
+.cloud-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 6px #10b981;
+    flex-shrink: 0;
+}
+
+.cloud-dot.connecting {
+    background: #f59e0b;
+    box-shadow: 0 0 6px #f59e0b;
+    animation: pulseSync 1.2s infinite ease-in-out;
+}
+
+.cloud-dot.error {
+    background: #ef4444;
+    box-shadow: 0 0 6px #ef4444;
+}
+
+@keyframes pulseSync {
+    0% { transform: scale(0.9); opacity: 0.5; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.5; }
+}
+
 nav {
     display: flex;
     flex-direction: column;
