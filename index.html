@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ViagemControl - Gastos e Entradas</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">🚗</span>
+                <div class="logo-text">
+                    <h1>ViagemControl</h1>
+                    <span class="logo-sub">Gestão de Viagens</span>
+                </div>
+            </div>
+            <nav>
+                <button class="nav-btn active" data-page="dashboard">
+                    <span class="nav-icon">📊</span> Dashboard
+                </button>
+                <button class="nav-btn" data-page="incomes">
+                    <span class="nav-icon">💵</span> Entradas (Dia 15)
+                </button>
+                <button class="nav-btn" data-page="new-trip">
+                    <span class="nav-icon">➕</span> Nova Viagem
+                </button>
+                <button class="nav-btn" data-page="trips">
+                    <span class="nav-icon">📋</span> Viagens & Gastos
+                </button>
+                <button class="nav-btn" data-page="settings">
+                    <span class="nav-icon">⚙️</span> Configurações
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="btn-export-csv" class="btn-export">
+                    <span>📥</span> Exportar Relatório (CSV)
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- ==================== DASHBOARD ==================== -->
+            <section id="page-dashboard" class="page active">
+                <header class="page-header">
+                    <div>
+                        <h2>Dashboard Financeiro</h2>
+                        <p class="subtitle">Acompanhe entradas, gastos com carro e saldo por período</p>
+                    </div>
+
+                    <!-- Period View Switcher -->
+                    <div class="view-switcher-container">
+                        <div class="view-switcher">
+                            <button type="button" class="view-btn active" data-view="monthly">📅 Mensal</button>
+                            <button type="button" class="view-btn" data-view="semester">📆 Semestral</button>
+                            <button type="button" class="view-btn" data-view="annual">📈 Anual</button>
+                        </div>
+
+                        <!-- Dynamic Filter Controls -->
+                        <div class="filter-controls">
+                            <!-- Monthly filter -->
+                            <div id="filter-monthly-ctrl" class="filter-ctrl-group">
+                                <label for="dash-month">Mês:</label>
+                                <input type="month" id="dash-month">
+                            </div>
+
+                            <!-- Semester filter -->
+                            <div id="filter-semester-ctrl" class="filter-ctrl-group" style="display: none;">
+                                <label for="dash-semester-year">Ano:</label>
+                                <select id="dash-semester-year"></select>
+                                <label for="dash-semester-opt">Semestre:</label>
+                                <select id="dash-semester-opt">
+                                    <option value="1">1º Semestre (Jan - Jun)</option>
+                                    <option value="2">2º Semestre (Jul - Dez)</option>
+                                </select>
+                            </div>
+
+                            <!-- Annual filter -->
+                            <div id="filter-annual-ctrl" class="filter-ctrl-group" style="display: none;">
+                                <label for="dash-annual-year">Ano:</label>
+                                <select id="dash-annual-year"></select>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Financial Health Summary -->
+                <div class="balance-banner" id="balance-banner">
+                    <div class="balance-item">
+                        <span class="bal-label">Total de Entradas</span>
+                        <span class="bal-value income" id="stat-total-income">R$ 0,00</span>
+                    </div>
+                    <div class="balance-separator">-</div>
+                    <div class="balance-item">
+                        <span class="bal-label">Total de Gastos</span>
+                        <span class="bal-value expense" id="stat-total-expense">R$ 0,00</span>
+                    </div>
+                    <div class="balance-separator">=</div>
+                    <div class="balance-item">
+                        <span class="bal-label">Saldo do Período</span>
+                        <span class="bal-value" id="stat-balance">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <!-- Secondary Stats Grid -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-icon">🗺️</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-trips-count">0</span>
+                            <span class="stat-label">Viagens Realizadas</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">📏</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-km-total">0 km</span>
+                            <span class="stat-label">KM Rodados</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">⛽</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-fuel-total">R$ 0,00</span>
+                            <span class="stat-label">Combustível</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🍽️</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-food-total">R$ 0,00</span>
+                            <span class="stat-label">Alimentação</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🛣️</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-toll-total">R$ 0,00</span>
+                            <span class="stat-label">Pedágios</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">📦</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-other-total">R$ 0,00</span>
+                            <span class="stat-label">Outras Despesas</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-row">
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3 id="chart-evolution-title">Entradas vs Gastos</h3>
+                            <span class="badge" id="chart-view-badge">Mensal</span>
+                        </div>
+                        <canvas id="chart-evolution"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-header">
+                            <h3>Composição dos Gastos</h3>
+                        </div>
+                        <canvas id="chart-breakdown"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Summary Table -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h3>Lançamentos do Período</h3>
+                        <div class="table-quick-actions">
+                            <button id="btn-quick-income" class="btn-sm btn-income">➕ Entrada (Dia 15)</button>
+                            <button id="btn-quick-trip" class="btn-sm btn-primary">➕ Viagem</button>
+                        </div>
+                    </div>
+                    <table class="data-table" id="period-summary-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Tipo</th>
+                                <th>Descrição / Rota</th>
+                                <th>KM</th>
+                                <th>Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- ==================== ENTRADAS (DIA 15) ==================== -->
+            <section id="page-incomes" class="page">
+                <header class="page-header">
+                    <div>
+                        <h2>Entradas & Reembolsos</h2>
+                        <p class="subtitle">Adiantamentos, depósitos do dia 15 e reembolsos da empresa</p>
+                    </div>
+                    <button class="btn-primary" id="btn-open-income-form">➕ Nova Entrada</button>
+                </header>
+
+                <!-- Income Card Form (Hidden by default / Toggleable) -->
+                <div class="section-card form-box" id="income-form-container" style="display:none;">
+                    <h3 id="income-form-title">Cadastrar Entrada</h3>
+                    <form id="income-form">
+                        <input type="hidden" id="income-id">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="income-date">Data *</label>
+                                <input type="date" id="income-date" required>
+                                <small class="hint">Dica: Selecione o dia 15 para fechamento mensal padrão</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="income-amount">Valor (R$) *</label>
+                                <input type="number" id="income-amount" step="0.01" min="0.01" placeholder="0,00" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="income-category">Categoria</label>
+                                <select id="income-category">
+                                    <option value="Adiantamento Dia 15">Adiantamento Dia 15</option>
+                                    <option value="Reembolso de Combustível">Reembolso de Combustível</option>
+                                    <option value="Diária de Viagem">Diária de Viagem</option>
+                                    <option value="Reembolso de Alimentação / Pedágio">Reembolso Geral</option>
+                                    <option value="Outros">Outros</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group flex-2">
+                                <label for="income-desc">Descrição / Observação</label>
+                                <input type="text" id="income-desc" placeholder="Ex: Adiantamento de viagens - Quinzena / Mês">
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">💾 Salvar Entrada</button>
+                            <button type="button" class="btn-secondary" id="btn-cancel-income">Cancelar</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Incomes Table -->
+                <div class="section-card">
+                    <div class="section-card-header">
+                        <h3>Histórico de Entradas</h3>
+                        <div class="filter-group-inline">
+                            <input type="month" id="incomes-filter-month">
+                            <button id="btn-incomes-clear-filter" class="btn-sm">Todos</button>
+                        </div>
+                    </div>
+                    <table class="data-table" id="incomes-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Categoria</th>
+                                <th>Descrição</th>
+                                <th>Valor</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <p id="no-incomes-msg" class="empty-msg" style="display:none;">Nenhuma entrada registrada neste período.</p>
+                </div>
+            </section>
+
+            <!-- ==================== NOVA / EDITAR VIAGEM ==================== -->
+            <section id="page-new-trip" class="page">
+                <header class="page-header">
+                    <div>
+                        <h2 id="form-trip-title">Nova Viagem de Trabalho</h2>
+                        <p class="subtitle">Informe os dados do trajeto com seu carro para o cálculo automático</p>
+                    </div>
+                </header>
+
+                <form id="trip-form" class="trip-form">
+                    <input type="hidden" id="trip-id">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="trip-date">Data da Viagem *</label>
+                            <input type="date" id="trip-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="trip-origin">Cidade de Origem</label>
+                            <input type="text" id="trip-origin" placeholder="Ex: Campinas">
+                        </div>
+                        <div class="form-group">
+                            <label for="trip-destination">Cidade de Destino *</label>
+                            <input type="text" id="trip-destination" placeholder="Ex: Ribeirão Preto" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group flex-2">
+                            <label for="trip-purpose">Motivo / Cliente / Projeto</label>
+                            <input type="text" id="trip-purpose" placeholder="Ex: Visita técnica no cliente XPTO">
+                        </div>
+                    </div>
+
+                    <fieldset class="form-section">
+                        <legend>🚗 Dados do Percurso & Combustível</legend>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="trip-km">KM Rodados (Total Ida + Volta) *</label>
+                                <input type="number" id="trip-km" step="0.1" min="0" placeholder="0" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="trip-fuel-price">Preço do Combustível (R$/L)</label>
+                                <input type="number" id="trip-fuel-price" step="0.01" min="0" placeholder="0.00">
+                                <small class="hint">Vazio = usa padrão das configurações</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="trip-km-per-liter">Média de Consumo (KM/L)</label>
+                                <input type="number" id="trip-km-per-liter" step="0.1" min="0.1" placeholder="0.0">
+                                <small class="hint">Vazio = usa padrão das configurações</small>
+                            </div>
+                        </div>
+
+                        <!-- Live Fuel Calculation Box -->
+                        <div class="calc-box">
+                            <div class="calc-col">
+                                <span class="calc-label">Combustível consumido:</span>
+                                <strong id="calc-liters">0,0 L</strong>
+                            </div>
+                            <div class="calc-col">
+                                <span class="calc-label">Custo estimado de combustível:</span>
+                                <strong id="calc-fuel-cost" class="highlight-green">R$ 0,00</strong>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section">
+                        <legend>💰 Outros Gastos da Viagem</legend>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="trip-food">Alimentação (R$)</label>
+                                <input type="number" id="trip-food" step="0.01" min="0" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="trip-toll">Pedágios (R$)</label>
+                                <input type="number" id="trip-toll" step="0.01" min="0" placeholder="0.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="trip-other">Outras Despesas (R$)</label>
+                                <input type="number" id="trip-other" step="0.01" min="0" placeholder="0.00">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="trip-other-desc">Descrição de Outras Despesas</label>
+                            <input type="text" id="trip-other-desc" placeholder="Ex: Estacionamento, hotel, taxa de balsa...">
+                        </div>
+                    </fieldset>
+
+                    <div class="form-group">
+                        <label for="trip-notes">Observações Gerais</label>
+                        <textarea id="trip-notes" rows="2" placeholder="Informações extras sobre a viagem ou rota..."></textarea>
+                    </div>
+
+                    <!-- Live Total Calculation Bar -->
+                    <div class="total-bar">
+                        <span>Total Geral desta Viagem:</span>
+                        <strong id="calc-trip-total">R$ 0,00</strong>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary" id="btn-save-trip">💾 Salvar Viagem</button>
+                        <button type="button" class="btn-secondary" id="btn-cancel-trip">Cancelar</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- ==================== TODAS AS VIAGENS ==================== -->
+            <section id="page-trips" class="page">
+                <header class="page-header">
+                    <div>
+                        <h2>Registro de Viagens</h2>
+                        <p class="subtitle">Lista detalhada de todas as viagens cadastradas</p>
+                    </div>
+                    <div class="trip-filters">
+                        <input type="text" id="filter-trips-search" placeholder="🔍 Buscar destino ou cliente...">
+                        <input type="month" id="filter-trips-month">
+                        <button id="btn-trips-clear-filter" class="btn-sm">Limpar</button>
+                    </div>
+                </header>
+
+                <div class="section-card">
+                    <table class="data-table" id="all-trips-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Trajeto</th>
+                                <th>Motivo</th>
+                                <th>KM</th>
+                                <th>Combustível</th>
+                                <th>Alimentação</th>
+                                <th>Pedágio</th>
+                                <th>Outros</th>
+                                <th>Total</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <p id="no-trips-msg" class="empty-msg" style="display:none;">Nenhuma viagem encontrada.</p>
+                </div>
+            </section>
+
+            <!-- ==================== CONFIGURAÇÕES ==================== -->
+            <section id="page-settings" class="page">
+                <header class="page-header">
+                    <div>
+                        <h2>Configurações do Sistema</h2>
+                        <p class="subtitle">Defina os parâmetros padrão do seu veículo e regras financeiras</p>
+                    </div>
+                </header>
+
+                <form id="settings-form" class="trip-form">
+                    <fieldset class="form-section">
+                        <legend>🚗 Seu Carro & Consumo</legend>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cfg-car-model">Modelo do Carro</label>
+                                <input type="text" id="cfg-car-model" placeholder="Ex: Onix 1.0, Civic 2.0, Polo TSI">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-km-per-liter">Média de Consumo (KM/L) *</label>
+                                <input type="number" id="cfg-km-per-liter" step="0.1" min="1" placeholder="10.0" required>
+                                <small class="hint">Média na estrada/cidade para o cálculo dos litros</small>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section">
+                        <legend>⛽ Combustível Padrão</legend>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cfg-fuel-type">Tipo de Combustível</label>
+                                <select id="cfg-fuel-type">
+                                    <option value="Gasolina">Gasolina</option>
+                                    <option value="Etanol">Etanol</option>
+                                    <option value="Diesel">Diesel</option>
+                                    <option value="GNV">GNV</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-fuel-price">Preço Médio por Litro (R$) *</label>
+                                <input type="number" id="cfg-fuel-price" step="0.01" min="0.01" placeholder="5.79" required>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section">
+                        <legend>📍 Origem e Cidade Base</legend>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cfg-default-origin">Cidade de Origem Padrão</label>
+                                <input type="text" id="cfg-default-origin" placeholder="Ex: São Paulo - SP">
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section">
+                        <legend>💵 Automação de Entradas (Dia 15)</legend>
+                        <p class="section-desc">Se a sua empresa deposita um valor fixo todo dia 15, configure aqui para agilizar:</p>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cfg-default-income-amount">Valor Padrão da Entrada Mensal (R$)</label>
+                                <input type="number" id="cfg-default-income-amount" step="0.01" min="0" placeholder="Ex: 1500.00">
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-default-income-desc">Descrição Padrão</label>
+                                <input type="text" id="cfg-default-income-desc" placeholder="Ex: Adiantamento Viagens - Dia 15">
+                            </div>
+                        </div>
+                        <div style="margin-top: 0.5rem;">
+                            <button type="button" id="btn-generate-yearly-incomes" class="btn-sm btn-income">
+                                ⚡ Gerar Entradas do Dia 15 para todo o ano atual
+                            </button>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">💾 Salvar Configurações</button>
+                    </div>
+                </form>
+
+                <!-- Data Backup and Restore -->
+                <fieldset class="form-section danger-zone">
+                    <legend>💾 Backup e Gerenciamento de Dados</legend>
+                    <p>Todos os seus dados estão salvos com segurança no navegador. Faça backup para não perder nada:</p>
+                    <div class="form-actions" style="margin-top: 1rem;">
+                        <button type="button" id="btn-export-json" class="btn-secondary">📥 Baixar Backup (JSON)</button>
+                        <button type="button" id="btn-import-json" class="btn-secondary">📤 Restaurar Backup (JSON)</button>
+                        <button type="button" id="btn-clear-all" class="btn-danger">🗑️ Limpar Todos os Registros</button>
+                    </div>
+                    <input type="file" id="file-import" accept=".json" style="display:none;">
+                </fieldset>
+            </section>
+        </main>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <h3 id="modal-title">Confirmar</h3>
+            <p id="modal-msg">Tem certeza?</p>
+            <div class="modal-actions">
+                <button id="modal-confirm" class="btn-danger">Confirmar</button>
+                <button id="modal-cancel" class="btn-secondary">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast" style="display:none;"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
