@@ -37,6 +37,7 @@
 
     let currentDashboardView = 'monthly'; // 'monthly' | 'semester' | 'annual'
     let currentTripStores = []; // Lojas da viagem sendo cadastrada/editada
+    let currentTripExpenses = []; // Gastos detalhados (pedágios, alimentação, etc.)
     let chartEvolution = null;
     let chartBreakdown = null;
     let modalCallback = null;
@@ -57,6 +58,7 @@
         bindModal();
         bindRouteButtons();
         bindStoresEvents();
+        bindExpenseItemsEvents();
 
         loadSettingsIntoForm();
         renderDashboard();
@@ -802,6 +804,14 @@
         currentTripStores = [];
         renderTripStoresChips();
 
+        // Reset expenses & tolls
+        currentTripExpenses = [];
+        renderTripExpensesList();
+        document.getElementById('trip-toll').value = '';
+        document.getElementById('trip-food').value = '';
+        document.getElementById('trip-other').value = '';
+        document.getElementById('trip-other-desc').value = '';
+
         updateTripLiveCalc();
     }
 
@@ -857,6 +867,7 @@
             kmPerLiter: parseFloat(document.getElementById('trip-km-per-liter').value) || null,
             wearCost: parseFloat(document.getElementById('trip-wear-cost').value) || null,
             stores: [...currentTripStores],
+            expenses: [...currentTripExpenses],
             food: parseFloat(document.getElementById('trip-food').value) || 0,
             toll: parseFloat(document.getElementById('trip-toll').value) || 0,
             other: parseFloat(document.getElementById('trip-other').value) || 0,
@@ -907,6 +918,22 @@
 
         currentTripStores = trip.stores ? [...trip.stores] : [];
         renderTripStoresChips();
+
+        if (trip.expenses && Array.isArray(trip.expenses)) {
+            currentTripExpenses = [...trip.expenses];
+        } else {
+            currentTripExpenses = [];
+            if (trip.toll > 0) {
+                currentTripExpenses.push({ id: 't1', category: 'Pedágio', description: 'Pedágio Total', amount: trip.toll });
+            }
+            if (trip.food > 0) {
+                currentTripExpenses.push({ id: 'f1', category: 'Alimentação', description: 'Alimentação', amount: trip.food });
+            }
+            if (trip.other > 0) {
+                currentTripExpenses.push({ id: 'o1', category: 'Outros', description: trip.otherDesc || 'Outras Despesas', amount: trip.other });
+            }
+        }
+        renderTripExpensesList();
 
         updateTripLiveCalc();
     }
@@ -964,6 +991,13 @@
             const times = calcTripTimes(t);
             const pontoStr = (t.timeStart && t.timeEnd) ? `${t.timeStart} - ${t.timeEnd}` : (t.timeStart || t.timeEnd || '-');
 
+            const tollExpenses = (t.expenses || []).filter(e => e.category === 'Pedágio');
+            const tollCount = tollExpenses.length;
+            const tollTooltip = tollExpenses.map(e => `${e.description}: ${currency(e.amount)}`).join(' | ');
+            const tollDisplay = tollCount > 1 
+                ? `<span title="${escapeHtml(tollTooltip)}" style="cursor:help;">${currency(t.toll)} <small style="display:block;color:#4338ca;font-size:0.75rem;font-weight:600;">(${tollCount} pedágios)</small></span>` 
+                : currency(t.toll);
+
             return `<tr>
                 <td>${fmtDate(t.date)}</td>
                 <td><small style="font-weight:600;color:var(--text-main);">${escapeHtml(pontoStr)}</small></td>
@@ -974,7 +1008,7 @@
                 <td><span style="color:#8b5cf6;font-weight:600;">${formatMinutes(times.serviceMin)}</span></td>
                 <td>${currency(fuel.cost)}</td>
                 <td>${currency(t.food)}</td>
-                <td>${currency(t.toll)}</td>
+                <td>${tollDisplay}</td>
                 <td class="text-expense">${currency(total)}</td>
                 <td class="actions">
                     <button class="btn-icon btn-edit-trip" data-id="${t.id}" title="Editar">✏️</button>
@@ -1202,6 +1236,151 @@
                 <td><small style="color:var(--text-muted);">${escapeHtml(s.tripPurpose || '-')}</small></td>
             </tr>`;
         }).join('');
+    }
+
+    // ============================
+    //  LANÇAMENTO DE GASTOS & PEDÁGIOS
+    // ============================
+    function bindExpenseItemsEvents() {
+        const btnAdd = document.getElementById('btn-add-expense');
+        const amountInput = document.getElementById('expense-input-amount');
+        const descInput = document.getElementById('expense-input-desc');
+
+        if (btnAdd) {
+            btnAdd.addEventListener('click', addExpenseItemFromInputs);
+        }
+
+        if (amountInput) {
+            amountInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addExpenseItemFromInputs();
+                }
+            });
+        }
+
+        if (descInput) {
+            descInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    amountInput.focus();
+                }
+            });
+        }
+    }
+
+    function addExpenseItemFromInputs() {
+        const catSelect = document.getElementById('expense-input-cat');
+        const descInput = document.getElementById('expense-input-desc');
+        const amountInput = document.getElementById('expense-input-amount');
+
+        const cat = catSelect.value;
+        let desc = descInput.value.trim();
+        const amount = parseFloat(amountInput.value);
+
+        if (isNaN(amount) || amount <= 0) {
+            showToast('Informe um valor de gasto válido maior que zero!', true);
+            amountInput.focus();
+            return;
+        }
+
+        if (!desc) {
+            if (cat === 'Pedágio') {
+                const count = currentTripExpenses.filter(e => e.category === 'Pedágio').length + 1;
+                desc = `Pedágio Praça ${count}`;
+            } else {
+                desc = cat;
+            }
+        }
+
+        currentTripExpenses.push({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            category: cat,
+            description: desc,
+            amount: amount
+        });
+
+        descInput.value = '';
+        amountInput.value = '';
+        catSelect.value = 'Pedágio'; // mantem pedágio pronto para o próximo
+        descInput.focus();
+
+        recalculateSubtotalsFromExpenses();
+        renderTripExpensesList();
+        updateTripLiveCalc();
+        showToast(`✅ ${cat} de ${currency(amount)} adicionado!`);
+    }
+
+    function recalculateSubtotalsFromExpenses() {
+        if (currentTripExpenses.length === 0) return;
+
+        let tollTotal = 0;
+        let foodTotal = 0;
+        let otherTotal = 0;
+        let otherDescriptions = [];
+
+        currentTripExpenses.forEach(e => {
+            if (e.category === 'Pedágio') {
+                tollTotal += (e.amount || 0);
+            } else if (e.category === 'Alimentação') {
+                foodTotal += (e.amount || 0);
+            } else {
+                otherTotal += (e.amount || 0);
+                if (e.description) otherDescriptions.push(e.description);
+            }
+        });
+
+        document.getElementById('trip-toll').value = tollTotal > 0 ? tollTotal.toFixed(2) : '';
+        document.getElementById('trip-food').value = foodTotal > 0 ? foodTotal.toFixed(2) : '';
+        document.getElementById('trip-other').value = otherTotal > 0 ? otherTotal.toFixed(2) : '';
+        document.getElementById('trip-other-desc').value = otherDescriptions.join(', ');
+    }
+
+    function renderTripExpensesList() {
+        const container = document.getElementById('trip-expenses-container');
+        if (!container) return;
+
+        if (currentTripExpenses.length === 0) {
+            container.innerHTML = '<span class="empty-hint" id="no-expenses-hint">Nenhum pedágio ou despesa avulsa adicionada. Lance cada um conforme passar!</span>';
+            return;
+        }
+
+        container.innerHTML = currentTripExpenses.map((e, idx) => {
+            let catClass = 'expense-cat-other';
+            let icon = '📦';
+            if (e.category === 'Pedágio') { catClass = 'expense-cat-toll'; icon = '🛣️'; }
+            else if (e.category === 'Alimentação') { catClass = 'expense-cat-food'; icon = '🍽️'; }
+            else if (e.category === 'Estacionamento') { catClass = 'expense-cat-parking'; icon = '🅿️'; }
+            else if (e.category === 'Hospedagem') { catClass = 'expense-cat-hotel'; icon = '🏨'; }
+
+            return `
+                <div class="expense-item-chip">
+                    <div class="expense-chip-left">
+                        <span class="expense-chip-cat ${catClass}">${icon} ${escapeHtml(e.category)}</span>
+                        <span><strong>${escapeHtml(e.description || '-')}</strong></span>
+                    </div>
+                    <div class="expense-chip-right">
+                        <span class="expense-chip-val">${currency(e.amount)}</span>
+                        <button type="button" class="expense-chip-remove" data-idx="${idx}" title="Remover gasto">&times;</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.expense-chip-remove').forEach(b => {
+            b.addEventListener('click', (ev) => {
+                const idx = parseInt(ev.currentTarget.dataset.idx, 10);
+                currentTripExpenses.splice(idx, 1);
+                recalculateSubtotalsFromExpenses();
+                if (currentTripExpenses.length === 0) {
+                    document.getElementById('trip-toll').value = '';
+                    document.getElementById('trip-food').value = '';
+                    document.getElementById('trip-other').value = '';
+                }
+                renderTripExpensesList();
+                updateTripLiveCalc();
+            });
+        });
     }
 
     // ============================
@@ -1572,7 +1751,7 @@
             'Tempo_Volante', 'Tempo_Servico', 'Jornada_Total',
             'Origem', 'Destino', 'Motivo', 'Lojas_Visitadas', 'KM', 'Preco_Combustivel',
             'Media_KM_L', 'Litros_Gastos', 'Custo_Combustivel', 'Desgaste_Carro_R$',
-            'Alimentacao', 'Pedagios', 'Outros', 'Descricao_Outros', 'Total_Reembolso', 'Total_Real_Operacional', 'Observacoes'
+            'Alimentacao', 'Pedagios', 'Pedagios_Discriminados', 'Outros', 'Descricao_Outros', 'Total_Reembolso', 'Total_Real_Operacional', 'Observacoes'
         ].join(sep));
 
         trips.slice().sort((a,b) => (a.date || '').localeCompare(b.date || '')).forEach(t => {
@@ -1581,6 +1760,7 @@
             const total = calcTripTotal(t);
             const times = calcTripTimes(t);
             const storesNames = (t.stores || []).map(s => `${s.name} (${s.type})`).join(' | ');
+            const tollItems = (t.expenses || []).filter(e => e.category === 'Pedágio').map(e => `${e.description} (R$ ${e.amount.toFixed(2)})`).join(' + ');
 
             lines.push([
                 fmtDate(t.date),
@@ -1603,6 +1783,7 @@
                 (wear).toFixed(2).replace('.', ','),
                 (t.food || 0).toFixed(2).replace('.', ','),
                 (t.toll || 0).toFixed(2).replace('.', ','),
+                `"${tollItems.replace(/"/g, '""')}"`,
                 (t.other || 0).toFixed(2).replace('.', ','),
                 `"${(t.otherDesc || '').replace(/"/g, '""')}"`,
                 (total).toFixed(2).replace('.', ','),

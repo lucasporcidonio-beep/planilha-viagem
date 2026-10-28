@@ -506,26 +506,58 @@
                         </div>
                     </fieldset>
 
-                    <fieldset class="form-section">
-                        <legend>💰 Outros Gastos da Viagem</legend>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="trip-food">Alimentação (R$)</label>
-                                <input type="number" id="trip-food" step="0.01" min="0" placeholder="0.00">
+                    <fieldset class="form-section highlight-toll">
+                        <legend>💰 Lançamento de Gastos (Pedágios, Alimentação & Despesas)</legend>
+                        <p class="section-desc">Adicione cada pedágio pelo qual passar ou qualquer outro gasto do trajeto para somar automaticamente:</p>
+                        
+                        <!-- Formulário de Adicionar Gasto / Pedágio -->
+                        <div class="form-row form-row-expense">
+                            <div class="form-group" style="min-width: 160px;">
+                                <label for="expense-input-cat">Categoria</label>
+                                <select id="expense-input-cat">
+                                    <option value="Pedágio">🛣️ Pedágio</option>
+                                    <option value="Alimentação">🍽️ Alimentação</option>
+                                    <option value="Estacionamento">🅿️ Estacionamento</option>
+                                    <option value="Hospedagem">🏨 Hospedagem</option>
+                                    <option value="Outros">📦 Outros Gastos</option>
+                                </select>
                             </div>
-                            <div class="form-group">
-                                <label for="trip-toll">Pedágios (R$)</label>
-                                <input type="number" id="trip-toll" step="0.01" min="0" placeholder="0.00">
+                            <div class="form-group flex-2">
+                                <label for="expense-input-desc">Praça de Pedágio / Descrição do Gasto</label>
+                                <input type="text" id="expense-input-desc" placeholder="Ex: Pedágio Anhanguera km 115, Almoço Graal...">
                             </div>
-                            <div class="form-group">
-                                <label for="trip-other">Outras Despesas (R$)</label>
-                                <input type="number" id="trip-other" step="0.01" min="0" placeholder="0.00">
+                            <div class="form-group" style="min-width: 130px;">
+                                <label for="expense-input-amount">Valor (R$) *</label>
+                                <input type="number" id="expense-input-amount" step="0.01" min="0.01" placeholder="0,00">
+                            </div>
+                            <div class="form-group store-btn-wrap">
+                                <button type="button" id="btn-add-expense" class="btn-primary btn-sm" style="height: 40px; margin-top: auto;">
+                                    ➕ Adicionar Gasto
+                                </button>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="trip-other-desc">Descrição de Outras Despesas</label>
-                            <input type="text" id="trip-other-desc" placeholder="Ex: Estacionamento, hotel, taxa de balsa...">
+
+                        <!-- Lista dos Gastos Adicionados na Viagem -->
+                        <div id="trip-expenses-container" class="expenses-list-box">
+                            <span class="empty-hint" id="no-expenses-hint">Nenhum pedágio ou despesa avulsa adicionada. Lance cada um conforme passar!</span>
                         </div>
+
+                        <!-- Subtotais dos Gastos -->
+                        <div class="expense-subtotals-row">
+                            <div class="subtotal-item">
+                                <span class="subtotal-label">🛣️ Subtotal Pedágios (R$):</span>
+                                <input type="number" id="trip-toll" step="0.01" min="0" placeholder="0.00" class="subtotal-input">
+                            </div>
+                            <div class="subtotal-item">
+                                <span class="subtotal-label">🍽️ Subtotal Alimentação (R$):</span>
+                                <input type="number" id="trip-food" step="0.01" min="0" placeholder="0.00" class="subtotal-input">
+                            </div>
+                            <div class="subtotal-item">
+                                <span class="subtotal-label">📦 Outras Despesas (R$):</span>
+                                <input type="number" id="trip-other" step="0.01" min="0" placeholder="0.00" class="subtotal-input">
+                            </div>
+                        </div>
+                        <input type="hidden" id="trip-other-desc">
                     </fieldset>
 
                     <div class="form-group">

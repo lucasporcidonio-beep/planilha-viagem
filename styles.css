@@ -949,6 +949,127 @@ nav {
     background: #fee2e2;
 }
 
+/* ===== Lançamento de Gastos & Pedágios Detalhados ===== */
+.highlight-toll {
+    border-color: #cbd5e1 !important;
+    background: #f8fafc !important;
+}
+
+.highlight-toll legend {
+    color: #1e293b !important;
+}
+
+.form-row-expense {
+    display: grid;
+    grid-template-columns: 1.2fr 2fr 1.2fr auto;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.expenses-list-box {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    min-height: 44px;
+    padding: 0.75rem;
+    background: #ffffff;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border);
+}
+
+.expense-item-chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.85rem;
+    background: #f1f5f9;
+    border-radius: var(--radius-sm);
+    border: 1px solid #e2e8f0;
+    font-size: 0.9rem;
+    transition: background 0.2s;
+}
+
+.expense-item-chip:hover {
+    background: #e2e8f0;
+}
+
+.expense-chip-left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.expense-chip-cat {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.expense-cat-toll { background: #e0e7ff; color: #4338ca; }
+.expense-cat-food { background: #fef3c7; color: #b45309; }
+.expense-cat-parking { background: #e0f2fe; color: #0369a1; }
+.expense-cat-hotel { background: #f3e8ff; color: #7e22ce; }
+.expense-cat-other { background: #f1f5f9; color: #475569; }
+
+.expense-chip-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.expense-chip-val {
+    font-weight: 700;
+    color: var(--expense-dark);
+}
+
+.expense-chip-remove {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.expense-chip-remove:hover {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+.expense-subtotals-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border);
+}
+
+.subtotal-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.subtotal-label {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.subtotal-input {
+    font-weight: 700 !important;
+    background: #ffffff !important;
+}
+
 .empty-hint {
     color: var(--text-muted);
     font-size: 0.85rem;
