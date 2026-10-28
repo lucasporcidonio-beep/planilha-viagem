@@ -199,6 +199,61 @@
         return `${parts[2]}/${parts[1]}/${parts[0]}`;
     }
 
+    // ===== TIME & PONTO HELPERS =====
+    function parseTimeToMinutes(str) {
+        if (!str || !str.includes(':')) return null;
+        const [h, m] = str.split(':').map(Number);
+        if (isNaN(h) || isNaN(m)) return null;
+        return h * 60 + m;
+    }
+
+    function diffMinutes(startMin, endMin) {
+        if (startMin === null || endMin === null) return 0;
+        let diff = endMin - startMin;
+        if (diff < 0) diff += 24 * 60; // caso vire a noite
+        return diff;
+    }
+
+    function formatMinutes(totalMin) {
+        if (!totalMin || totalMin <= 0) return '0h 00m';
+        const h = Math.floor(totalMin / 60);
+        const m = Math.round(totalMin % 60);
+        return `${h}h ${String(m).padStart(2, '0')}m`;
+    }
+
+    function calcTripTimes(trip) {
+        const startMin = parseTimeToMinutes(trip.timeStart);
+        const arrivalMin = parseTimeToMinutes(trip.timeArrival);
+        const departureMin = parseTimeToMinutes(trip.timeDeparture);
+        const endMin = parseTimeToMinutes(trip.timeEnd);
+
+        if (startMin === null && endMin === null && arrivalMin === null && departureMin === null) {
+            return { workMin: 0, serviceMin: 0, driveMin: 0 };
+        }
+
+        let workMin = 0;
+        let serviceMin = 0;
+        let driveMin = 0;
+
+        if (startMin !== null && endMin !== null) {
+            workMin = diffMinutes(startMin, endMin);
+        }
+
+        if (arrivalMin !== null && departureMin !== null) {
+            serviceMin = diffMinutes(arrivalMin, departureMin);
+        }
+
+        if (startMin !== null && arrivalMin !== null && departureMin !== null && endMin !== null) {
+            const ida = diffMinutes(startMin, arrivalMin);
+            const volta = diffMinutes(departureMin, endMin);
+            driveMin = ida + volta;
+        } else if (workMin > 0) {
+            driveMin = Math.max(0, workMin - serviceMin);
+        }
+
+        return { workMin, serviceMin, driveMin };
+    }
+
     function calcFuelDetails(km, fuelPrice, kmPerLiter) {
         const price = fuelPrice || settings.fuelPrice;
         const avg = kmPerLiter || settings.kmPerLiter;
@@ -250,12 +305,15 @@
         // Aggregate Incomes
         const totalIncome = periodIncomes.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
 
-        // Aggregate Expenses & KM
+        // Aggregate Expenses, KM & Times
         let totalKm = 0;
         let totalFuel = 0;
         let totalFood = 0;
         let totalToll = 0;
         let totalOther = 0;
+        let totalWorkMinutes = 0;
+        let totalDriveMinutes = 0;
+        let totalServiceMinutes = 0;
 
         periodTrips.forEach(t => {
             totalKm += parseFloat(t.km) || 0;
@@ -263,6 +321,11 @@
             totalFood += parseFloat(t.food) || 0;
             totalToll += parseFloat(t.toll) || 0;
             totalOther += parseFloat(t.other) || 0;
+
+            const times = calcTripTimes(t);
+            totalWorkMinutes += times.workMin;
+            totalDriveMinutes += times.driveMin;
+            totalServiceMinutes += times.serviceMin;
         });
 
         const totalExpense = totalFuel + totalFood + totalToll + totalOther;
@@ -275,6 +338,11 @@
         const balEl = document.getElementById('stat-balance');
         balEl.textContent = currency(balance);
         balEl.className = 'bal-value ' + (balance >= 0 ? 'positive' : 'negative');
+
+        // Update DOM - Time & Ponto Banner
+        document.getElementById('stat-total-worktime').textContent = formatMinutes(totalWorkMinutes);
+        document.getElementById('stat-total-drive').textContent = formatMinutes(totalDriveMinutes);
+        document.getElementById('stat-total-service').textContent = formatMinutes(totalServiceMinutes);
 
         // Update DOM - Secondary Stats
         document.getElementById('stat-trips-count').textContent = periodTrips.length;
@@ -464,10 +532,16 @@
         periodTrips.forEach(t => {
             const total = calcTripTotal(t);
             const route = t.origin ? `${t.origin} → ${t.destination}` : t.destination;
+            const times = calcTripTimes(t);
+            const timeDesc = (t.timeStart && t.timeEnd) 
+                ? `${t.timeStart} - ${t.timeEnd} (Dir: ${formatMinutes(times.driveMin)} | Serv: ${formatMinutes(times.serviceMin)})`
+                : '-';
+
             items.push({
                 type: 'trip',
                 date: t.date,
                 title: `${route} ${t.purpose ? '- ' + t.purpose : ''}`,
+                timeInfo: timeDesc,
                 km: fmtKm(t.km),
                 amount: total
             });
@@ -476,7 +550,7 @@
         items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         if (items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:2rem;">Nenhum lançamento no período selecionado.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem;">Nenhum lançamento no período selecionado.</td></tr>';
             return;
         }
 
@@ -489,6 +563,7 @@
                     </span>
                 </td>
                 <td>${escapeHtml(item.title)}</td>
+                <td><small style="color:var(--text-muted);font-weight:500;">${item.timeInfo || '-'}</small></td>
                 <td>${item.km}</td>
                 <td class="${item.type === 'income' ? 'text-income' : 'text-expense'}">
                     ${item.type === 'income' ? '+' : '-'} ${currency(item.amount)}
@@ -649,9 +724,14 @@
             showPage('trips');
         });
 
-        // Live calculation triggers
-        ['trip-km', 'trip-fuel-price', 'trip-km-per-liter', 'trip-food', 'trip-toll', 'trip-other'].forEach(id => {
-            document.getElementById(id).addEventListener('input', updateTripLiveCalc);
+        // Live calculation triggers (KM, Preços e Horários)
+        [
+            'trip-km', 'trip-fuel-price', 'trip-km-per-liter',
+            'trip-food', 'trip-toll', 'trip-other',
+            'trip-time-start', 'trip-time-arrival', 'trip-time-departure', 'trip-time-end'
+        ].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('input', updateTripLiveCalc);
         });
     }
 
@@ -666,6 +746,12 @@
         document.getElementById('trip-origin').value = settings.defaultOrigin || '';
         document.getElementById('trip-km-per-liter').placeholder = settings.kmPerLiter;
         document.getElementById('trip-fuel-price').placeholder = settings.fuelPrice.toFixed(2);
+
+        // Reset times
+        document.getElementById('trip-time-start').value = '';
+        document.getElementById('trip-time-arrival').value = '';
+        document.getElementById('trip-time-departure').value = '';
+        document.getElementById('trip-time-end').value = '';
 
         updateTripLiveCalc();
     }
@@ -685,6 +771,18 @@
 
         const total = fuel.cost + food + toll + other;
         document.getElementById('calc-trip-total').textContent = currency(total);
+
+        // Live calculation of times (Ponto / Volante / Serviço)
+        const times = calcTripTimes({
+            timeStart: document.getElementById('trip-time-start').value,
+            timeArrival: document.getElementById('trip-time-arrival').value,
+            timeDeparture: document.getElementById('trip-time-departure').value,
+            timeEnd: document.getElementById('trip-time-end').value
+        });
+
+        document.getElementById('calc-drive-time').textContent = formatMinutes(times.driveMin);
+        document.getElementById('calc-service-time').textContent = formatMinutes(times.serviceMin);
+        document.getElementById('calc-work-time').textContent = formatMinutes(times.workMin);
     }
 
     function handleTripSubmit(e) {
@@ -697,6 +795,10 @@
             destination: document.getElementById('trip-destination').value.trim(),
             origin: document.getElementById('trip-origin').value.trim(),
             purpose: document.getElementById('trip-purpose').value.trim(),
+            timeStart: document.getElementById('trip-time-start').value || '',
+            timeArrival: document.getElementById('trip-time-arrival').value || '',
+            timeDeparture: document.getElementById('trip-time-departure').value || '',
+            timeEnd: document.getElementById('trip-time-end').value || '',
             km: parseFloat(document.getElementById('trip-km').value) || 0,
             fuelPrice: parseFloat(document.getElementById('trip-fuel-price').value) || null,
             kmPerLiter: parseFloat(document.getElementById('trip-km-per-liter').value) || null,
@@ -734,6 +836,10 @@
         document.getElementById('trip-destination').value = trip.destination;
         document.getElementById('trip-origin').value = trip.origin || '';
         document.getElementById('trip-purpose').value = trip.purpose || '';
+        document.getElementById('trip-time-start').value = trip.timeStart || '';
+        document.getElementById('trip-time-arrival').value = trip.timeArrival || '';
+        document.getElementById('trip-time-departure').value = trip.timeDeparture || '';
+        document.getElementById('trip-time-end').value = trip.timeEnd || '';
         document.getElementById('trip-km').value = trip.km;
         document.getElementById('trip-fuel-price').value = trip.fuelPrice || '';
         document.getElementById('trip-km-per-liter').value = trip.kmPerLiter || '';
@@ -796,15 +902,20 @@
             const fuel = calcFuelDetails(t.km, t.fuelPrice, t.kmPerLiter);
             const total = calcTripTotal(t);
             const route = t.origin ? `${t.origin} → ${t.destination}` : t.destination;
+            const times = calcTripTimes(t);
+            const pontoStr = (t.timeStart && t.timeEnd) ? `${t.timeStart} - ${t.timeEnd}` : (t.timeStart || t.timeEnd || '-');
+
             return `<tr>
                 <td>${fmtDate(t.date)}</td>
+                <td><small style="font-weight:600;color:var(--text-main);">${escapeHtml(pontoStr)}</small></td>
                 <td><strong>${escapeHtml(route)}</strong></td>
                 <td>${escapeHtml(t.purpose || '-')}</td>
                 <td>${fmtKm(t.km)}</td>
+                <td><span style="color:#2563eb;font-weight:600;">${formatMinutes(times.driveMin)}</span></td>
+                <td><span style="color:#8b5cf6;font-weight:600;">${formatMinutes(times.serviceMin)}</span></td>
                 <td>${currency(fuel.cost)}</td>
                 <td>${currency(t.food)}</td>
                 <td>${currency(t.toll)}</td>
-                <td>${currency(t.other)}</td>
                 <td class="text-expense">${currency(total)}</td>
                 <td class="actions">
                     <button class="btn-icon btn-edit-trip" data-id="${t.id}" title="Editar">✏️</button>
@@ -988,7 +1099,9 @@
         // 2. Trips Section
         lines.push('--- VIAGENS E DESPESAS ---');
         lines.push([
-            'Data', 'Origem', 'Destino', 'Motivo', 'KM', 'Preco_Combustivel',
+            'Data', 'Saida_Base', 'Chegada_Destino', 'Saida_Destino', 'Chegada_Final',
+            'Tempo_Volante', 'Tempo_Servico', 'Jornada_Total',
+            'Origem', 'Destino', 'Motivo', 'KM', 'Preco_Combustivel',
             'Media_KM_L', 'Litros_Gastos', 'Custo_Combustivel', 'Alimentacao',
             'Pedagios', 'Outros', 'Descricao_Outros', 'Total_Viagem', 'Observacoes'
         ].join(sep));
@@ -996,8 +1109,17 @@
         trips.slice().sort((a,b) => (a.date || '').localeCompare(b.date || '')).forEach(t => {
             const fuel = calcFuelDetails(t.km, t.fuelPrice, t.kmPerLiter);
             const total = calcTripTotal(t);
+            const times = calcTripTimes(t);
+
             lines.push([
                 fmtDate(t.date),
+                `"${t.timeStart || ''}"`,
+                `"${t.timeArrival || ''}"`,
+                `"${t.timeDeparture || ''}"`,
+                `"${t.timeEnd || ''}"`,
+                `"${formatMinutes(times.driveMin)}"`,
+                `"${formatMinutes(times.serviceMin)}"`,
+                `"${formatMinutes(times.workMin)}"`,
                 `"${(t.origin || '').replace(/"/g, '""')}"`,
                 `"${(t.destination || '').replace(/"/g, '""')}"`,
                 `"${(t.purpose || '').replace(/"/g, '""')}"`,

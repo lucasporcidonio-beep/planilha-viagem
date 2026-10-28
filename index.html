@@ -108,6 +108,33 @@
                     </div>
                 </div>
 
+                <!-- Time & Ponto Tracking Banner -->
+                <div class="time-banner">
+                    <div class="time-item">
+                        <span class="time-icon">⏰</span>
+                        <div class="time-info">
+                            <span class="time-val" id="stat-total-worktime">0h 00m</span>
+                            <span class="time-lbl">Jornada Total (Ponto)</span>
+                        </div>
+                    </div>
+                    <div class="time-divider"></div>
+                    <div class="time-item">
+                        <span class="time-icon">🚗</span>
+                        <div class="time-info">
+                            <span class="time-val" id="stat-total-drive">0h 00m</span>
+                            <span class="time-lbl">Tempo de Volante (Deslocamento)</span>
+                        </div>
+                    </div>
+                    <div class="time-divider"></div>
+                    <div class="time-item">
+                        <span class="time-icon">🛠️</span>
+                        <div class="time-info">
+                            <span class="time-val" id="stat-total-service">0h 00m</span>
+                            <span class="time-lbl">Tempo de Serviço (No Cliente)</span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Secondary Stats Grid -->
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -186,6 +213,7 @@
                                 <th>Data</th>
                                 <th>Tipo</th>
                                 <th>Descrição / Rota</th>
+                                <th>Horários / Ponto</th>
                                 <th>KM</th>
                                 <th>Valor</th>
                             </tr>
@@ -304,6 +332,49 @@
                     </div>
 
                     <fieldset class="form-section">
+                        <legend>⏱️ Registro de Horários & Ponto da Viagem</legend>
+                        <p class="section-desc">Registre os horários de saída e chegada para acompanhamento do tempo de direção e trabalho no local:</p>
+                        <div class="form-row form-row-4">
+                            <div class="form-group">
+                                <label for="trip-time-start">1. Saída (Início da Viagem) *</label>
+                                <input type="time" id="trip-time-start">
+                                <small class="hint">Saída da sua casa ou base</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="trip-time-arrival">2. Chegada no Destino / Cliente</label>
+                                <input type="time" id="trip-time-arrival">
+                                <small class="hint">Início do serviço no cliente</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="trip-time-departure">3. Término do Serviço / Retorno</label>
+                                <input type="time" id="trip-time-departure">
+                                <small class="hint">Fim do atendimento no cliente</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="trip-time-end">4. Chegada Final (Fim da Jornada) *</label>
+                                <input type="time" id="trip-time-end">
+                                <small class="hint">Chegada de volta na base</small>
+                            </div>
+                        </div>
+
+                        <!-- Live Time Calculation Indicators -->
+                        <div class="calc-box time-calc-box">
+                            <div class="calc-col">
+                                <span class="calc-label">🚗 Tempo de Volante (Deslocamento):</span>
+                                <strong id="calc-drive-time" class="highlight-blue">0h 00m</strong>
+                            </div>
+                            <div class="calc-col">
+                                <span class="calc-label">🛠️ Tempo de Serviço (No Cliente):</span>
+                                <strong id="calc-service-time" class="highlight-purple">0h 00m</strong>
+                            </div>
+                            <div class="calc-col">
+                                <span class="calc-label">⏰ Jornada Total (Ponto):</span>
+                                <strong id="calc-work-time" class="highlight-green">0h 00m</strong>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section">
                         <legend>🚗 Dados do Percurso & Combustível</legend>
                         <div class="form-row">
                             <div class="form-group">
@@ -394,13 +465,15 @@
                         <thead>
                             <tr>
                                 <th>Data</th>
+                                <th>Horários (Ponto)</th>
                                 <th>Trajeto</th>
                                 <th>Motivo</th>
                                 <th>KM</th>
+                                <th>Volante</th>
+                                <th>Serviço</th>
                                 <th>Combustível</th>
                                 <th>Alimentação</th>
                                 <th>Pedágio</th>
-                                <th>Outros</th>
                                 <th>Total</th>
                                 <th>Ações</th>
                             </tr>

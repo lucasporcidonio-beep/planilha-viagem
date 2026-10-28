@@ -317,6 +317,79 @@ nav {
     color: #cbd5e1;
 }
 
+/* ===== Time & Ponto Tracking Banner ===== */
+.time-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #ffffff;
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-md);
+    flex-wrap: wrap;
+    gap: 1.25rem;
+}
+
+.time-item {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.time-icon {
+    font-size: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.6rem;
+    border-radius: var(--radius-md);
+}
+
+.time-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.time-val {
+    font-size: 1.45rem;
+    font-weight: 700;
+    color: #38bdf8;
+    line-height: 1.2;
+}
+
+.time-lbl {
+    font-size: 0.78rem;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.time-divider {
+    width: 1px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.form-row-4 {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.time-calc-box {
+    background: #f0fdf4 !important;
+    border-color: #bbf7d0 !important;
+}
+
+.highlight-blue {
+    color: #2563eb;
+    font-size: 1.15rem;
+}
+
+.highlight-purple {
+    color: #8b5cf6;
+    font-size: 1.15rem;
+}
+
 /* ===== Stats Grid ===== */
 .stats-grid {
     display: grid;
