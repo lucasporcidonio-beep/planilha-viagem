@@ -855,6 +855,264 @@ nav {
     to { transform: translateY(0); opacity: 1; }
 }
 
+/* ===== Rota Inteligente: Google Maps & Waze ===== */
+.route-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #f8fafc;
+    padding: 0.65rem 1rem;
+    border-radius: var(--radius-md);
+    border: 1px dashed var(--border);
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.route-hint {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+.btn-map {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    color: var(--text-main);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: all 0.2s;
+}
+
+.btn-map:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateY(-1px);
+}
+
+/* ===== Lojas Visitadas (Solo Vivo) ===== */
+.highlight-border {
+    border-color: #a7f3d0 !important;
+    background: #f0fdf4 !important;
+}
+
+.highlight-border legend {
+    color: #065f46 !important;
+}
+
+.form-row-store {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.2fr 1fr auto;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.stores-badge-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 1rem;
+    min-height: 42px;
+    padding: 0.65rem;
+    background: #ffffff;
+    border-radius: var(--radius-md);
+    border: 1px solid #d1fae5;
+}
+
+.store-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.store-chip-remove {
+    background: transparent;
+    border: none;
+    color: #059669;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0 0.2rem;
+    border-radius: 50%;
+}
+
+.store-chip-remove:hover {
+    color: #dc2626;
+    background: #fee2e2;
+}
+
+.empty-hint {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    align-self: center;
+}
+
+.badge-store-type {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-super { background: #e0f2fe; color: #0369a1; }
+.badge-horti { background: #dcfce7; color: #15803d; }
+.badge-emporio { background: #fef3c7; color: #b45309; }
+.badge-atacado { background: #f3e8ff; color: #7e22ce; }
+
+/* ===== Alert Banner (Manutenção Preventiva) ===== */
+.alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: #fffbeb;
+    border: 1.5px solid #fde68a;
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.alert-icon { font-size: 1.6rem; }
+
+.alert-text {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #92400e;
+}
+
+.btn-outline {
+    background: #ffffff;
+    border: 1px solid #d97706;
+    color: #b45309;
+    font-weight: 600;
+}
+
+.btn-outline:hover {
+    background: #fef3c7;
+}
+
+/* ===== Manutenção & Desgaste Grid ===== */
+.maint-banner {
+    background: #ffffff;
+    border: 1px solid var(--border);
+}
+
+.maint-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+    gap: 1.25rem;
+    margin-top: 1.5rem;
+}
+
+.maint-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.4rem;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.maint-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.maint-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.maint-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.maint-status-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.55rem;
+    border-radius: 9999px;
+}
+
+.status-ok { background: #dcfce7; color: #15803d; }
+.status-warning { background: #fef3c7; color: #b45309; }
+.status-danger { background: #fee2e2; color: #b91c1c; }
+
+.maint-desc {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+}
+
+.maint-progress-wrap {
+    margin-bottom: 1.25rem;
+}
+
+.maint-progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
+}
+
+.maint-progress-bar {
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.maint-progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.4s ease;
+}
+
+.fill-ok { background: #10b981; }
+.fill-warning { background: #f59e0b; }
+.fill-danger { background: #ef4444; }
+
+.btn-maint-action {
+    width: 100%;
+    padding: 0.55rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: #f8fafc;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-maint-action:hover {
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
+}
+
 /* ===== Responsive Design ===== */
 @media (max-width: 960px) {
     .sidebar {

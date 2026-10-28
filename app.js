@@ -16,9 +16,18 @@
         kmPerLiter: 11.5,
         fuelType: 'Gasolina',
         fuelPrice: 5.89,
+        wearCostPerKm: 0.45,
+        carOdometer: 85000,
         defaultOrigin: '',
         defaultIncomeAmount: 1500.00,
-        defaultIncomeDesc: 'Adiantamento Viagens - Dia 15'
+        defaultIncomeDesc: 'Adiantamento Viagens - Dia 15',
+        maintenanceHistory: {
+            oilChange: 80000,
+            tireRotation: 80000,
+            brakes: 70000,
+            tires: 60000,
+            generalReview: 50000
+        }
     };
 
     // ===== State =====
@@ -27,6 +36,7 @@
     let settings = loadSettings();
 
     let currentDashboardView = 'monthly'; // 'monthly' | 'semester' | 'annual'
+    let currentTripStores = []; // Lojas da viagem sendo cadastrada/editada
     let chartEvolution = null;
     let chartBreakdown = null;
     let modalCallback = null;
@@ -45,6 +55,8 @@
         bindFilters();
         bindBackupAndExport();
         bindModal();
+        bindRouteButtons();
+        bindStoresEvents();
 
         loadSettingsIntoForm();
         renderDashboard();
@@ -137,6 +149,13 @@
             showPage('incomes');
             openIncomeFormWithDay15();
         });
+
+        const btnMaint = document.getElementById('btn-view-maint');
+        if (btnMaint) {
+            btnMaint.addEventListener('click', () => {
+                showPage('maintenance');
+            });
+        }
     }
 
     function showPage(pageId) {
@@ -153,6 +172,8 @@
         if (pageId === 'incomes') renderIncomesTable();
         if (pageId === 'trips') renderAllTripsTable();
         if (pageId === 'new-trip') prepareNewTripForm();
+        if (pageId === 'stores') renderStoresPage();
+        if (pageId === 'maintenance') renderMaintenancePage();
     }
 
     // ============================
@@ -262,6 +283,14 @@
         return { liters, cost: liters * price };
     }
 
+    function calcWearDetails(km, wearCost) {
+        const costPerKm = (wearCost !== null && wearCost !== undefined && !isNaN(wearCost)) 
+            ? wearCost 
+            : (settings.wearCostPerKm || 0.45);
+        if (!km || !costPerKm) return 0;
+        return km * costPerKm;
+    }
+
     function calcTripTotal(trip) {
         const fuel = calcFuelDetails(trip.km, trip.fuelPrice, trip.kmPerLiter);
         return fuel.cost + (trip.food || 0) + (trip.toll || 0) + (trip.other || 0);
@@ -305,22 +334,27 @@
         // Aggregate Incomes
         const totalIncome = periodIncomes.reduce((acc, i) => acc + (parseFloat(i.amount) || 0), 0);
 
-        // Aggregate Expenses, KM & Times
+        // Aggregate Expenses, KM, Times, Wear & Stores
         let totalKm = 0;
         let totalFuel = 0;
         let totalFood = 0;
         let totalToll = 0;
         let totalOther = 0;
+        let totalWear = 0;
+        let totalStores = 0;
         let totalWorkMinutes = 0;
         let totalDriveMinutes = 0;
         let totalServiceMinutes = 0;
 
         periodTrips.forEach(t => {
-            totalKm += parseFloat(t.km) || 0;
+            const km = parseFloat(t.km) || 0;
+            totalKm += km;
             totalFuel += calcFuelDetails(t.km, t.fuelPrice, t.kmPerLiter).cost;
             totalFood += parseFloat(t.food) || 0;
             totalToll += parseFloat(t.toll) || 0;
             totalOther += parseFloat(t.other) || 0;
+            totalWear += calcWearDetails(km, t.wearCost);
+            totalStores += (t.stores ? t.stores.length : 0);
 
             const times = calcTripTimes(t);
             totalWorkMinutes += times.workMin;
@@ -351,6 +385,15 @@
         document.getElementById('stat-food-total').textContent = currency(totalFood);
         document.getElementById('stat-toll-total').textContent = currency(totalToll);
         document.getElementById('stat-other-total').textContent = currency(totalOther);
+
+        const storesEl = document.getElementById('stat-stores-count');
+        if (storesEl) storesEl.textContent = totalStores;
+
+        const wearEl = document.getElementById('stat-wear-total');
+        if (wearEl) wearEl.textContent = currency(totalWear);
+
+        // Check maintenance alerts
+        checkMaintenanceAlerts();
 
         // Update Charts
         renderEvolutionChart(periodIncomes, periodTrips);
@@ -724,9 +767,9 @@
             showPage('trips');
         });
 
-        // Live calculation triggers (KM, Preços e Horários)
+        // Live calculation triggers (KM, Preços, Desgaste e Horários)
         [
-            'trip-km', 'trip-fuel-price', 'trip-km-per-liter',
+            'trip-km', 'trip-fuel-price', 'trip-km-per-liter', 'trip-wear-cost',
             'trip-food', 'trip-toll', 'trip-other',
             'trip-time-start', 'trip-time-arrival', 'trip-time-departure', 'trip-time-end'
         ].forEach(id => {
@@ -746,12 +789,18 @@
         document.getElementById('trip-origin').value = settings.defaultOrigin || '';
         document.getElementById('trip-km-per-liter').placeholder = settings.kmPerLiter;
         document.getElementById('trip-fuel-price').placeholder = settings.fuelPrice.toFixed(2);
+        document.getElementById('trip-wear-cost').placeholder = (settings.wearCostPerKm || 0.45).toFixed(2);
+        document.getElementById('trip-wear-cost').value = '';
 
         // Reset times
         document.getElementById('trip-time-start').value = '';
         document.getElementById('trip-time-arrival').value = '';
         document.getElementById('trip-time-departure').value = '';
         document.getElementById('trip-time-end').value = '';
+
+        // Reset stores
+        currentTripStores = [];
+        renderTripStoresChips();
 
         updateTripLiveCalc();
     }
@@ -760,14 +809,18 @@
         const km = parseFloat(document.getElementById('trip-km').value) || 0;
         const fuelPrice = parseFloat(document.getElementById('trip-fuel-price').value) || settings.fuelPrice;
         const kmPerLiter = parseFloat(document.getElementById('trip-km-per-liter').value) || settings.kmPerLiter;
+        const wearCostInput = parseFloat(document.getElementById('trip-wear-cost').value);
         const food = parseFloat(document.getElementById('trip-food').value) || 0;
         const toll = parseFloat(document.getElementById('trip-toll').value) || 0;
         const other = parseFloat(document.getElementById('trip-other').value) || 0;
 
         const fuel = calcFuelDetails(km, fuelPrice, kmPerLiter);
+        const wearCost = calcWearDetails(km, isNaN(wearCostInput) ? null : wearCostInput);
 
         document.getElementById('calc-liters').textContent = (fuel.liters).toFixed(1).replace('.', ',') + ' L';
         document.getElementById('calc-fuel-cost').textContent = currency(fuel.cost);
+        document.getElementById('calc-wear-cost').textContent = currency(wearCost);
+        document.getElementById('calc-car-total').textContent = currency(fuel.cost + wearCost);
 
         const total = fuel.cost + food + toll + other;
         document.getElementById('calc-trip-total').textContent = currency(total);
@@ -802,6 +855,8 @@
             km: parseFloat(document.getElementById('trip-km').value) || 0,
             fuelPrice: parseFloat(document.getElementById('trip-fuel-price').value) || null,
             kmPerLiter: parseFloat(document.getElementById('trip-km-per-liter').value) || null,
+            wearCost: parseFloat(document.getElementById('trip-wear-cost').value) || null,
+            stores: [...currentTripStores],
             food: parseFloat(document.getElementById('trip-food').value) || 0,
             toll: parseFloat(document.getElementById('trip-toll').value) || 0,
             other: parseFloat(document.getElementById('trip-other').value) || 0,
@@ -843,11 +898,15 @@
         document.getElementById('trip-km').value = trip.km;
         document.getElementById('trip-fuel-price').value = trip.fuelPrice || '';
         document.getElementById('trip-km-per-liter').value = trip.kmPerLiter || '';
+        document.getElementById('trip-wear-cost').value = trip.wearCost || '';
         document.getElementById('trip-food').value = trip.food || '';
         document.getElementById('trip-toll').value = trip.toll || '';
         document.getElementById('trip-other').value = trip.other || '';
         document.getElementById('trip-other-desc').value = trip.otherDesc || '';
         document.getElementById('trip-notes').value = trip.notes || '';
+
+        currentTripStores = trip.stores ? [...trip.stores] : [];
+        renderTripStoresChips();
 
         updateTripLiveCalc();
     }
@@ -942,7 +1001,417 @@
     }
 
     // ============================
+    //  ROTA INTELIGENTE (GOOGLE MAPS & WAZE)
+    // ============================
+    function bindRouteButtons() {
+        const btnGmaps = document.getElementById('btn-open-gmaps');
+        const btnWaze = document.getElementById('btn-open-waze');
+
+        if (btnGmaps) {
+            btnGmaps.addEventListener('click', () => {
+                const origin = document.getElementById('trip-origin').value.trim() || settings.defaultOrigin || '';
+                const dest = document.getElementById('trip-destination').value.trim();
+
+                if (!dest) {
+                    showToast('Informe o destino da viagem primeiro!', true);
+                    document.getElementById('trip-destination').focus();
+                    return;
+                }
+
+                // If there are stores visited, include them as waypoints
+                let waypointsStr = '';
+                if (currentTripStores.length > 0) {
+                    const storeStops = currentTripStores.map(s => `${s.name}, ${dest}`).join('|');
+                    waypointsStr = `&waypoints=${encodeURIComponent(storeStops)}`;
+                }
+
+                let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`;
+                if (origin) url += `&origin=${encodeURIComponent(origin)}`;
+                if (waypointsStr) url += waypointsStr;
+
+                window.open(url, '_blank');
+            });
+        }
+
+        if (btnWaze) {
+            btnWaze.addEventListener('click', () => {
+                const dest = document.getElementById('trip-destination').value.trim();
+                if (!dest) {
+                    showToast('Informe o destino da viagem primeiro!', true);
+                    document.getElementById('trip-destination').focus();
+                    return;
+                }
+                const url = `https://waze.com/ul?q=${encodeURIComponent(dest)}&navigate=yes`;
+                window.open(url, '_blank');
+            });
+        }
+    }
+
+    // ============================
+    //  LOJAS VISITADAS (SOLO VIVO)
+    // ============================
+    function bindStoresEvents() {
+        const btnAdd = document.getElementById('btn-add-store');
+        if (btnAdd) {
+            btnAdd.addEventListener('click', () => {
+                const nameInput = document.getElementById('store-input-name');
+                const typeInput = document.getElementById('store-input-type');
+                const statusInput = document.getElementById('store-input-status');
+                const orderInput = document.getElementById('store-input-order');
+
+                const name = nameInput.value.trim();
+                if (!name) {
+                    showToast('Informe o nome da loja ou supermercado!', true);
+                    nameInput.focus();
+                    return;
+                }
+
+                currentTripStores.push({
+                    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                    name,
+                    type: typeInput.value,
+                    status: statusInput.value,
+                    orderValue: parseFloat(orderInput.value) || 0
+                });
+
+                nameInput.value = '';
+                orderInput.value = '';
+                nameInput.focus();
+
+                renderTripStoresChips();
+                showToast(`Loja "${name}" adicionada ao roteiro!`);
+            });
+        }
+
+        // Filters in Stores Page
+        const searchInput = document.getElementById('filter-stores-search');
+        const typeSelect = document.getElementById('filter-stores-type');
+        if (searchInput) searchInput.addEventListener('input', renderStoresPage);
+        if (typeSelect) typeSelect.addEventListener('change', renderStoresPage);
+    }
+
+    function renderTripStoresChips() {
+        const container = document.getElementById('trip-stores-list');
+        if (!container) return;
+
+        if (currentTripStores.length === 0) {
+            container.innerHTML = '<span class="empty-hint" id="no-stores-added-hint">Nenhuma loja adicionada nesta viagem ainda.</span>';
+            return;
+        }
+
+        container.innerHTML = currentTripStores.map((s, idx) => `
+            <div class="store-chip">
+                <span><strong>${escapeHtml(s.name)}</strong> (${s.type} - ${s.status}${s.orderValue > 0 ? ` | Pedido: ${currency(s.orderValue)}` : ''})</span>
+                <button type="button" class="store-chip-remove" data-idx="${idx}" title="Remover loja">&times;</button>
+            </div>
+        `).join('');
+
+        container.querySelectorAll('.store-chip-remove').forEach(b => {
+            b.addEventListener('click', (e) => {
+                const idx = parseInt(e.currentTarget.dataset.idx, 10);
+                currentTripStores.splice(idx, 1);
+                renderTripStoresChips();
+            });
+        });
+    }
+
+    function renderStoresPage() {
+        const search = (document.getElementById('filter-stores-search')?.value || '').toLowerCase();
+        const typeFilter = document.getElementById('filter-stores-type')?.value || '';
+
+        // Extract all stores from all trips
+        let allStores = [];
+        trips.forEach(t => {
+            if (t.stores && Array.isArray(t.stores)) {
+                t.stores.forEach(s => {
+                    allStores.push({
+                        ...s,
+                        tripDate: t.date,
+                        tripRoute: t.origin ? `${t.origin} → ${t.destination}` : t.destination,
+                        tripPurpose: t.purpose || ''
+                    });
+                });
+            }
+        });
+
+        // Compute overall stats
+        let totalOrders = 0;
+        let superCount = 0;
+        let hortiCount = 0;
+
+        allStores.forEach(s => {
+            totalOrders += (s.orderValue || 0);
+            if (s.type === 'Supermercado') superCount++;
+            if (s.type === 'Hortifruti') hortiCount++;
+        });
+
+        const statTotalEl = document.getElementById('stores-stat-total');
+        if (statTotalEl) statTotalEl.textContent = allStores.length;
+        const statSuperEl = document.getElementById('stores-stat-super');
+        if (statSuperEl) statSuperEl.textContent = superCount;
+        const statHortiEl = document.getElementById('stores-stat-horti');
+        if (statHortiEl) statHortiEl.textContent = hortiCount;
+        const statOrdersEl = document.getElementById('stores-stat-orders');
+        if (statOrdersEl) statOrdersEl.textContent = currency(totalOrders);
+
+        // Apply filters
+        let filtered = allStores;
+        if (search) {
+            filtered = filtered.filter(s => 
+                (s.name || '').toLowerCase().includes(search) || 
+                (s.tripRoute || '').toLowerCase().includes(search) ||
+                (s.status || '').toLowerCase().includes(search)
+            );
+        }
+
+        if (typeFilter) {
+            filtered = filtered.filter(s => s.type === typeFilter);
+        }
+
+        filtered.sort((a, b) => (b.tripDate || '').localeCompare(a.tripDate || ''));
+
+        const tbody = document.querySelector('#stores-table tbody');
+        const noMsg = document.getElementById('no-stores-msg');
+        const table = document.getElementById('stores-table');
+
+        if (!tbody) return;
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '';
+            if (noMsg) noMsg.style.display = 'block';
+            if (table) table.style.display = 'none';
+            return;
+        }
+
+        if (noMsg) noMsg.style.display = 'none';
+        if (table) table.style.display = '';
+
+        tbody.innerHTML = filtered.map(s => {
+            let badgeClass = 'badge-super';
+            if (s.type === 'Hortifruti') badgeClass = 'badge-horti';
+            if (s.type === 'Empório Natural') badgeClass = 'badge-emporio';
+            if (s.type === 'Atacarejo') badgeClass = 'badge-atacado';
+
+            return `<tr>
+                <td>${fmtDate(s.tripDate)}</td>
+                <td><strong>${escapeHtml(s.name)}</strong></td>
+                <td><span class="badge-store-type ${badgeClass}">${escapeHtml(s.type)}</span></td>
+                <td>${escapeHtml(s.tripRoute)}</td>
+                <td><span style="font-weight:600;color:#065f46;">${escapeHtml(s.status)}</span></td>
+                <td style="font-weight:600;color:var(--primary);">${s.orderValue > 0 ? currency(s.orderValue) : '-'}</td>
+                <td><small style="color:var(--text-muted);">${escapeHtml(s.tripPurpose || '-')}</small></td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ============================
+    //  MANUTENÇÃO & DESGASTE DO CARRO
+    // ============================
+    const MAINTENANCE_RULES = [
+        { key: 'oilChange', title: 'Troca de Óleo e Filtro', interval: 10000, icon: '🛢️', desc: 'Essencial para a vida útil do motor' },
+        { key: 'tireRotation', title: 'Alinhamento & Rodízio de Pneus', interval: 10000, icon: '🛞', desc: 'Evita desgaste irregular e melhora a frenagem' },
+        { key: 'brakes', title: 'Pastilhas de Freio & Fluidos', interval: 25000, icon: '🛑', desc: 'Segurança e eficiência na frenagem' },
+        { key: 'tires', title: 'Troca de Pneus', interval: 45000, icon: '🚘', desc: 'Substituição completa do jogo de pneus' },
+        { key: 'generalReview', title: 'Revisão Geral do Carro', interval: 50000, icon: '⚙️', desc: 'Correias, suspensão, velas e filtros' }
+    ];
+
+    function calculateVehicleMetrics() {
+        const totalWorkKm = trips.reduce((acc, t) => acc + (parseFloat(t.km) || 0), 0);
+        const currentOdometer = (settings.carOdometer || 85000) + totalWorkKm;
+        const maintenanceFund = totalWorkKm * (settings.wearCostPerKm || 0.45);
+
+        return { totalWorkKm, currentOdometer, maintenanceFund };
+    }
+
+    function checkMaintenanceAlerts() {
+        const { currentOdometer } = calculateVehicleMetrics();
+        const banner = document.getElementById('maint-alert-banner');
+        const msg = document.getElementById('maint-alert-msg');
+        if (!banner || !msg) return;
+
+        let warningItems = [];
+
+        MAINTENANCE_RULES.forEach(rule => {
+            const lastKm = (settings.maintenanceHistory && settings.maintenanceHistory[rule.key]) || settings.carOdometer || 80000;
+            const kmSince = Math.max(0, currentOdometer - lastKm);
+            const remaining = rule.interval - kmSince;
+
+            if (remaining <= 0) {
+                warningItems.push(`${rule.title} (VENCIDA há ${Math.abs(remaining).toFixed(0)} km!)`);
+            } else if (remaining <= 1500) {
+                warningItems.push(`${rule.title} (falta apenas ${remaining.toFixed(0)} km)`);
+            }
+        });
+
+        if (warningItems.length > 0) {
+            banner.style.display = 'flex';
+            msg.textContent = warningItems.join(' | ');
+        } else {
+            banner.style.display = 'none';
+        }
+    }
+
+    function renderMaintenancePage() {
+        const { totalWorkKm, currentOdometer, maintenanceFund } = calculateVehicleMetrics();
+
+        const odoEl = document.getElementById('maint-odometer');
+        if (odoEl) odoEl.textContent = (currentOdometer).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + ' km';
+
+        const workKmEl = document.getElementById('maint-total-work-km');
+        if (workKmEl) workKmEl.textContent = (totalWorkKm).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' km';
+
+        const fundEl = document.getElementById('maint-fund-total');
+        if (fundEl) fundEl.textContent = currency(maintenanceFund);
+
+        const container = document.getElementById('maint-grid-container');
+        if (!container) return;
+
+        container.innerHTML = MAINTENANCE_RULES.map(rule => {
+            const lastKm = (settings.maintenanceHistory && settings.maintenanceHistory[rule.key]) || settings.carOdometer || 80000;
+            const kmSince = Math.max(0, currentOdometer - lastKm);
+            const pct = Math.min(100, (kmSince / rule.interval) * 100);
+            const remaining = rule.interval - kmSince;
+
+            let statusClass = 'status-ok';
+            let fillClass = 'fill-ok';
+            let statusText = 'Em dia';
+
+            if (remaining <= 0) {
+                statusClass = 'status-danger';
+                fillClass = 'fill-danger';
+                statusText = 'VENCIDO!';
+            } else if (remaining <= 1500) {
+                statusClass = 'status-warning';
+                fillClass = 'fill-warning';
+                statusText = 'Atenção';
+            }
+
+            return `
+                <div class="maint-card">
+                    <div>
+                        <div class="maint-card-header">
+                            <span class="maint-title">${rule.icon} ${rule.title}</span>
+                            <span class="maint-status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        <p class="maint-desc">${rule.desc}</p>
+                        <div class="maint-progress-wrap">
+                            <div class="maint-progress-label">
+                                <span>${kmSince.toFixed(0)} km rodados</span>
+                                <span>Limite: ${rule.interval.toLocaleString('pt-BR')} km</span>
+                            </div>
+                            <div class="maint-progress-bar">
+                                <div class="maint-progress-fill ${fillClass}" style="width: ${pct}%"></div>
+                            </div>
+                            <small class="hint" style="display:block;margin-top:0.4rem;">
+                                ${remaining > 0 ? `Restam ${remaining.toFixed(0)} km até a próxima manutenção` : `Passou do prazo por ${Math.abs(remaining).toFixed(0)} km!`}
+                            </small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-maint-action" data-key="${rule.key}" data-title="${rule.title}">
+                        ✔️ Registrar Realização Hoje
+                    </button>
+                </div>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.btn-maint-action').forEach(b => {
+            b.addEventListener('click', () => {
+                const key = b.dataset.key;
+                const title = b.dataset.title;
+                showConfirm('Registrar Manutenção', `Confirmar que realizou a "${title}" no odômetro atual (${currentOdometer.toFixed(0)} km)? O contador será reiniciado.`, () => {
+                    if (!settings.maintenanceHistory) settings.maintenanceHistory = {};
+                    settings.maintenanceHistory[key] = currentOdometer;
+                    saveSettings();
+                    renderMaintenancePage();
+                    checkMaintenanceAlerts();
+                    showToast(`Manutenção "${title}" atualizada com sucesso!`);
+                });
+            });
+        });
+    }
+
+    // ============================
     //  SETTINGS & AUTOMATION DIA 15
+    // ============================
+    function bindSettingsForm() {
+        document.getElementById('settings-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            settings.carModel = document.getElementById('cfg-car-model').value.trim();
+            settings.kmPerLiter = parseFloat(document.getElementById('cfg-km-per-liter').value) || 10;
+            settings.fuelType = document.getElementById('cfg-fuel-type').value;
+            settings.fuelPrice = parseFloat(document.getElementById('cfg-fuel-price').value) || 5.80;
+            settings.defaultOrigin = document.getElementById('cfg-default-origin').value.trim();
+            settings.defaultIncomeAmount = parseFloat(document.getElementById('cfg-default-income-amount').value) || 0;
+            settings.defaultIncomeDesc = document.getElementById('cfg-default-income-desc').value.trim() || 'Adiantamento Viagens - Dia 15';
+
+            const odoInput = parseFloat(document.getElementById('cfg-odometer').value);
+            if (!isNaN(odoInput)) settings.carOdometer = odoInput;
+
+            const wearInput = parseFloat(document.getElementById('cfg-wear-cost').value);
+            if (!isNaN(wearInput)) settings.wearCostPerKm = wearInput;
+
+            saveSettings();
+            showToast('Configurações salvas!');
+            renderDashboard();
+        });
+
+        // Botão para gerar entradas do dia 15 para todo o ano
+        document.getElementById('btn-generate-yearly-incomes').addEventListener('click', () => {
+            const amount = parseFloat(document.getElementById('cfg-default-income-amount').value) || settings.defaultIncomeAmount;
+            if (!amount || amount <= 0) {
+                showToast('Informe um valor padrão maior que zero!', true);
+                return;
+            }
+
+            const currentYear = new Date().getFullYear();
+            showConfirm(
+                'Gerar Entradas do Dia 15',
+                `Deseja gerar automaticamente 12 entradas (uma no dia 15 de cada mês de ${currentYear}) no valor de ${currency(amount)}?`,
+                () => {
+                    let createdCount = 0;
+                    for (let m = 1; m <= 12; m++) {
+                        const mPad = String(m).padStart(2, '0');
+                        const targetDate = `${currentYear}-${mPad}-15`;
+
+                        const alreadyExists = incomes.some(i => i.date === targetDate);
+                        if (!alreadyExists) {
+                            incomes.push({
+                                id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                                date: targetDate,
+                                amount,
+                                category: 'Adiantamento Dia 15',
+                                description: settings.defaultIncomeDesc || 'Adiantamento Viagens - Dia 15',
+                                createdAt: new Date().toISOString()
+                            });
+                            createdCount++;
+                        }
+                    }
+                    saveIncomes();
+                    renderDashboard();
+                    showToast(`${createdCount} entradas geradas com sucesso!`);
+                }
+            );
+        });
+    }
+
+    function loadSettingsIntoForm() {
+        document.getElementById('cfg-car-model').value = settings.carModel || '';
+        document.getElementById('cfg-km-per-liter').value = settings.kmPerLiter;
+        document.getElementById('cfg-fuel-type').value = settings.fuelType || 'Gasolina';
+        document.getElementById('cfg-fuel-price').value = settings.fuelPrice;
+        document.getElementById('cfg-default-origin').value = settings.defaultOrigin || '';
+        document.getElementById('cfg-default-income-amount').value = settings.defaultIncomeAmount || '';
+        document.getElementById('cfg-default-income-desc').value = settings.defaultIncomeDesc || '';
+
+        const odoEl = document.getElementById('cfg-odometer');
+        if (odoEl) odoEl.value = settings.carOdometer || 85000;
+
+        const wearEl = document.getElementById('cfg-wear-cost');
+        if (wearEl) wearEl.value = settings.wearCostPerKm || 0.45;
+    }
+
+    // ============================
+    //  EXPORT & BACKUP
     // ============================
     function bindSettingsForm() {
         document.getElementById('settings-form').addEventListener('submit', (e) => {
@@ -1101,15 +1570,17 @@
         lines.push([
             'Data', 'Saida_Base', 'Chegada_Destino', 'Saida_Destino', 'Chegada_Final',
             'Tempo_Volante', 'Tempo_Servico', 'Jornada_Total',
-            'Origem', 'Destino', 'Motivo', 'KM', 'Preco_Combustivel',
-            'Media_KM_L', 'Litros_Gastos', 'Custo_Combustivel', 'Alimentacao',
-            'Pedagios', 'Outros', 'Descricao_Outros', 'Total_Viagem', 'Observacoes'
+            'Origem', 'Destino', 'Motivo', 'Lojas_Visitadas', 'KM', 'Preco_Combustivel',
+            'Media_KM_L', 'Litros_Gastos', 'Custo_Combustivel', 'Desgaste_Carro_R$',
+            'Alimentacao', 'Pedagios', 'Outros', 'Descricao_Outros', 'Total_Reembolso', 'Total_Real_Operacional', 'Observacoes'
         ].join(sep));
 
         trips.slice().sort((a,b) => (a.date || '').localeCompare(b.date || '')).forEach(t => {
             const fuel = calcFuelDetails(t.km, t.fuelPrice, t.kmPerLiter);
+            const wear = calcWearDetails(t.km, t.wearCost);
             const total = calcTripTotal(t);
             const times = calcTripTimes(t);
+            const storesNames = (t.stores || []).map(s => `${s.name} (${s.type})`).join(' | ');
 
             lines.push([
                 fmtDate(t.date),
@@ -1123,16 +1594,19 @@
                 `"${(t.origin || '').replace(/"/g, '""')}"`,
                 `"${(t.destination || '').replace(/"/g, '""')}"`,
                 `"${(t.purpose || '').replace(/"/g, '""')}"`,
+                `"${storesNames.replace(/"/g, '""')}"`,
                 (t.km || 0).toFixed(1).replace('.', ','),
                 (t.fuelPrice || settings.fuelPrice).toFixed(2).replace('.', ','),
                 (t.kmPerLiter || settings.kmPerLiter).toFixed(1).replace('.', ','),
                 (fuel.liters).toFixed(2).replace('.', ','),
                 (fuel.cost).toFixed(2).replace('.', ','),
+                (wear).toFixed(2).replace('.', ','),
                 (t.food || 0).toFixed(2).replace('.', ','),
                 (t.toll || 0).toFixed(2).replace('.', ','),
                 (t.other || 0).toFixed(2).replace('.', ','),
                 `"${(t.otherDesc || '').replace(/"/g, '""')}"`,
                 (total).toFixed(2).replace('.', ','),
+                (total + wear).toFixed(2).replace('.', ','),
                 `"${(t.notes || '').replace(/[\r\n]+/g, ' ').replace(/"/g, '""')}"`
             ].join(sep));
         });

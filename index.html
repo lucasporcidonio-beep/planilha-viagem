@@ -24,11 +24,17 @@
                 <button class="nav-btn active" data-page="dashboard">
                     <span class="nav-icon">📊</span> Dashboard
                 </button>
-                <button class="nav-btn" data-page="incomes">
-                    <span class="nav-icon">💵</span> Entradas (Dia 15)
-                </button>
                 <button class="nav-btn" data-page="new-trip">
                     <span class="nav-icon">➕</span> Nova Viagem
+                </button>
+                <button class="nav-btn" data-page="stores">
+                    <span class="nav-icon">🏪</span> Lojas Visitadas
+                </button>
+                <button class="nav-btn" data-page="maintenance">
+                    <span class="nav-icon">🔧</span> Manutenção & Desgaste
+                </button>
+                <button class="nav-btn" data-page="incomes">
+                    <span class="nav-icon">💵</span> Entradas (Dia 15)
                 </button>
                 <button class="nav-btn" data-page="trips">
                     <span class="nav-icon">📋</span> Viagens & Gastos
@@ -89,6 +95,16 @@
                         </div>
                     </div>
                 </header>
+
+                <!-- Vehicle Maintenance Notice Banner (Hidden if OK) -->
+                <div id="maint-alert-banner" class="alert-banner" style="display:none;">
+                    <span class="alert-icon">⚠️</span>
+                    <div class="alert-text">
+                        <strong>Atenção à Manutenção do Carro:</strong>
+                        <span id="maint-alert-msg">Há revisões preventivas próximas ou vencidas.</span>
+                    </div>
+                    <button id="btn-view-maint" class="btn-sm btn-outline">Ver Manutenções</button>
+                </div>
 
                 <!-- Financial Health Summary -->
                 <div class="balance-banner" id="balance-banner">
@@ -177,6 +193,20 @@
                         <div class="stat-info">
                             <span class="stat-value" id="stat-other-total">R$ 0,00</span>
                             <span class="stat-label">Outras Despesas</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🏪</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-stores-count">0</span>
+                            <span class="stat-label">Lojas Visitadas</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🔧</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-wear-total">R$ 0,00</span>
+                            <span class="stat-label">Fundo Desgaste Carro</span>
                         </div>
                     </div>
                 </div>
@@ -319,17 +349,74 @@
                             <input type="text" id="trip-origin" placeholder="Ex: Campinas">
                         </div>
                         <div class="form-group">
-                            <label for="trip-destination">Cidade de Destino *</label>
+                            <label for="trip-destination">Cidade de Destino / Região *</label>
                             <input type="text" id="trip-destination" placeholder="Ex: Ribeirão Preto" required>
                         </div>
                     </div>
 
-                    <div class="form-row">
+                    <!-- Rota Inteligente: Google Maps & Waze -->
+                    <div class="route-actions-row">
+                        <span class="route-hint">🗺️ Rota Inteligente:</span>
+                        <button type="button" id="btn-open-gmaps" class="btn-sm btn-map" title="Traçar rota no Google Maps">
+                            📍 Abrir no Google Maps
+                        </button>
+                        <button type="button" id="btn-open-waze" class="btn-sm btn-map" title="Navegar com Waze">
+                            🚙 Abrir no Waze
+                        </button>
+                    </div>
+
+                    <div class="form-row" style="margin-top: 1rem;">
                         <div class="form-group flex-2">
-                            <label for="trip-purpose">Motivo / Cliente / Projeto</label>
-                            <input type="text" id="trip-purpose" placeholder="Ex: Visita técnica no cliente XPTO">
+                            <label for="trip-purpose">Roteiro / Cliente / Observação Geral</label>
+                            <input type="text" id="trip-purpose" placeholder="Ex: Rota Solo Vivo - Região Central de Supermercados">
                         </div>
                     </div>
+
+                    <!-- Lojas / Clientes Visitados (Solo Vivo) -->
+                    <fieldset class="form-section highlight-border">
+                        <legend>🏪 Lojas Visitadas no Dia (Solo Vivo Produtos Orgânicos)</legend>
+                        <p class="section-desc">Registre os supermercados e hortifrutis atendidos hoje para controle de clientes e pedidos:</p>
+                        
+                        <div class="form-row form-row-store">
+                            <div class="form-group flex-2">
+                                <label for="store-input-name">Nome da Loja / Supermercado / Hortifruti</label>
+                                <input type="text" id="store-input-name" placeholder="Ex: Supermercado Pão de Açúcar, Hortifruti Oba...">
+                            </div>
+                            <div class="form-group">
+                                <label for="store-input-type">Tipo</label>
+                                <select id="store-input-type">
+                                    <option value="Supermercado">Supermercado</option>
+                                    <option value="Hortifruti">Hortifruti</option>
+                                    <option value="Empório Natural">Empório Natural</option>
+                                    <option value="Atacarejo">Atacarejo</option>
+                                    <option value="Outro">Outro</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="store-input-status">Ação Realizada</label>
+                                <select id="store-input-status">
+                                    <option value="Pedido Realizado">Pedido Realizado</option>
+                                    <option value="Reposição / Abastecimento">Reposição / Abastecimento</option>
+                                    <option value="Prospecção (Novo Cliente)">Prospecção (Novo)</option>
+                                    <option value="Visita de Relacionamento">Relacionamento / Cobrança</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="store-input-order">Valor do Pedido (R$)</label>
+                                <input type="number" id="store-input-order" step="0.01" min="0" placeholder="0,00">
+                            </div>
+                            <div class="form-group store-btn-wrap">
+                                <button type="button" id="btn-add-store" class="btn-primary btn-sm" style="height: 40px; margin-top: auto;">
+                                    ➕ Adicionar Loja
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Lista de Lojas Adicionadas na Viagem -->
+                        <div id="trip-stores-list" class="stores-badge-list">
+                            <span class="empty-hint" id="no-stores-added-hint">Nenhuma loja adicionada nesta viagem ainda.</span>
+                        </div>
+                    </fieldset>
 
                     <fieldset class="form-section">
                         <legend>⏱️ Registro de Horários & Ponto da Viagem</legend>
@@ -375,7 +462,7 @@
                     </fieldset>
 
                     <fieldset class="form-section">
-                        <legend>🚗 Dados do Percurso & Combustível</legend>
+                        <legend>🚗 Dados do Percurso, Combustível & Desgaste</legend>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="trip-km">KM Rodados (Total Ida + Volta) *</label>
@@ -391,17 +478,30 @@
                                 <input type="number" id="trip-km-per-liter" step="0.1" min="0.1" placeholder="0.0">
                                 <small class="hint">Vazio = usa padrão das configurações</small>
                             </div>
+                            <div class="form-group">
+                                <label for="trip-wear-cost">Desgaste por KM (R$/km)</label>
+                                <input type="number" id="trip-wear-cost" step="0.01" min="0" placeholder="0.45">
+                                <small class="hint">Pneus, óleo, depreciação</small>
+                            </div>
                         </div>
 
-                        <!-- Live Fuel Calculation Box -->
+                        <!-- Live Fuel & Wear Calculation Box -->
                         <div class="calc-box">
                             <div class="calc-col">
                                 <span class="calc-label">Combustível consumido:</span>
                                 <strong id="calc-liters">0,0 L</strong>
                             </div>
                             <div class="calc-col">
-                                <span class="calc-label">Custo estimado de combustível:</span>
-                                <strong id="calc-fuel-cost" class="highlight-green">R$ 0,00</strong>
+                                <span class="calc-label">Custo Combustível:</span>
+                                <strong id="calc-fuel-cost" class="highlight-blue">R$ 0,00</strong>
+                            </div>
+                            <div class="calc-col">
+                                <span class="calc-label">Desgaste / Manutenção:</span>
+                                <strong id="calc-wear-cost" class="highlight-purple">R$ 0,00</strong>
+                            </div>
+                            <div class="calc-col">
+                                <span class="calc-label">Custo Operacional Carro:</span>
+                                <strong id="calc-car-total" class="highlight-green">R$ 0,00</strong>
                             </div>
                         </div>
                     </fieldset>
@@ -444,6 +544,110 @@
                         <button type="button" class="btn-secondary" id="btn-cancel-trip">Cancelar</button>
                     </div>
                 </form>
+            </section>
+
+            <!-- ==================== LOJAS VISITADAS (SOLO VIVO) ==================== -->
+            <section id="page-stores" class="page">
+                <header class="page-header">
+                    <div>
+                        <h2>Lojas Visitadas (Solo Vivo Produtos Orgânicos)</h2>
+                        <p class="subtitle">Histórico de supermercados, hortifrutis e empórios atendidos</p>
+                    </div>
+                    <div class="trip-filters">
+                        <input type="text" id="filter-stores-search" placeholder="🔍 Buscar loja ou cidade...">
+                        <select id="filter-stores-type">
+                            <option value="">Todos os tipos</option>
+                            <option value="Supermercado">Supermercado</option>
+                            <option value="Hortifruti">Hortifruti</option>
+                            <option value="Empório Natural">Empório Natural</option>
+                            <option value="Atacarejo">Atacarejo</option>
+                        </select>
+                    </div>
+                </header>
+
+                <!-- Mini Stats das Lojas -->
+                <div class="stats-grid" style="margin-bottom: 1.5rem;">
+                    <div class="stat-card">
+                        <span class="stat-icon">🏪</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stores-stat-total">0</span>
+                            <span class="stat-label">Total de Visitas</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🛒</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stores-stat-super">0</span>
+                            <span class="stat-label">Supermercados</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">🥬</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stores-stat-horti">0</span>
+                            <span class="stat-label">Hortifrutis</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-icon">💼</span>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stores-stat-orders">R$ 0,00</span>
+                            <span class="stat-label">Total em Pedidos</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-card">
+                    <table class="data-table" id="stores-table">
+                        <thead>
+                            <tr>
+                                <th>Data</th>
+                                <th>Loja / Cliente</th>
+                                <th>Tipo</th>
+                                <th>Cidade / Região</th>
+                                <th>Ação / Objetivo</th>
+                                <th>Valor do Pedido</th>
+                                <th>Viagem / Roteiro</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <p id="no-stores-msg" class="empty-msg" style="display:none;">Nenhuma loja visitada registrada ainda. Ao cadastrar uma viagem, adicione as lojas atendidas no dia!</p>
+                </div>
+            </section>
+
+            <!-- ==================== MANUTENÇÃO & DESGASTE DO CARRO ==================== -->
+            <section id="page-maintenance" class="page">
+                <header class="page-header">
+                    <div>
+                        <h2>Manutenção Preventiva & Desgaste do Carro</h2>
+                        <p class="subtitle">Acompanhe a quilometragem do veículo, alertas de revisão e fundo de manutenção</p>
+                    </div>
+                </header>
+
+                <!-- Vehicle Health Overview Card -->
+                <div class="balance-banner maint-banner">
+                    <div class="balance-item">
+                        <span class="bal-label">Odômetro do Carro</span>
+                        <span class="bal-value" id="maint-odometer">0 km</span>
+                    </div>
+                    <div class="balance-separator">|</div>
+                    <div class="balance-item">
+                        <span class="bal-label">KM Rodados a Trabalho</span>
+                        <span class="bal-value" id="maint-total-work-km" style="color:var(--primary);">0 km</span>
+                    </div>
+                    <div class="balance-separator">|</div>
+                    <div class="balance-item">
+                        <span class="bal-label">Fundo de Reserva p/ Manutenção</span>
+                        <span class="bal-value income" id="maint-fund-total">R$ 0,00</span>
+                        <small class="hint" style="color:var(--income-dark);font-weight:600;">(Gerado pelo desgaste por KM)</small>
+                    </div>
+                </div>
+
+                <!-- Maintenance Items Grid -->
+                <div class="maint-grid" id="maint-grid-container">
+                    <!-- Cards will be populated dynamically -->
+                </div>
             </section>
 
             <!-- ==================== TODAS AS VIAGENS ==================== -->
@@ -495,7 +699,7 @@
 
                 <form id="settings-form" class="trip-form">
                     <fieldset class="form-section">
-                        <legend>🚗 Seu Carro & Consumo</legend>
+                        <legend>🚗 Seu Carro, Consumo & Odômetro</legend>
                         <div class="form-row">
                             <div class="form-group">
                                 <label for="cfg-car-model">Modelo do Carro</label>
@@ -504,7 +708,24 @@
                             <div class="form-group">
                                 <label for="cfg-km-per-liter">Média de Consumo (KM/L) *</label>
                                 <input type="number" id="cfg-km-per-liter" step="0.1" min="1" placeholder="10.0" required>
-                                <small class="hint">Média na estrada/cidade para o cálculo dos litros</small>
+                                <small class="hint">Média na estrada/cidade para cálculo dos litros</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="cfg-odometer">Odômetro Atual do Carro (km)</label>
+                                <input type="number" id="cfg-odometer" step="1" min="0" placeholder="Ex: 85000">
+                                <small class="hint">KM marcado no painel do carro</small>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="form-section">
+                        <legend>🔧 Parâmetros de Desgaste do Carro Próprio</legend>
+                        <p class="section-desc">Cálculo de depreciação e custo real por quilômetro rodado a serviço:</p>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="cfg-wear-cost">Custo de Desgaste por KM (R$/km) *</label>
+                                <input type="number" id="cfg-wear-cost" step="0.01" min="0" placeholder="0.45" required>
+                                <small class="hint">Recomendado: R$ 0,35 a R$ 0,60/km (pneus, óleo, suspensão e desvalorização)</small>
                             </div>
                         </div>
                     </fieldset>
