@@ -381,12 +381,32 @@
                     <!-- Lojas / Clientes Visitados (Solo Vivo) -->
                     <fieldset class="form-section highlight-border">
                         <legend>🏪 Lojas Visitadas no Dia (Solo Vivo Produtos Orgânicos)</legend>
-                        <p class="section-desc">Registre os supermercados e hortifrutis atendidos hoje para controle de clientes e pedidos:</p>
+                        <p class="section-desc">Selecione uma rota pré-cadastrada ou busque lojas parceiras (Campinas, Piracicaba, Americana, Jundiaí, Sorocaba):</p>
                         
+                        <!-- Barra Rápida de Rotas Pré-Cadastradas -->
+                        <div class="store-quick-toolbar">
+                            <label for="quick-route-select" style="font-weight: 600; font-size: 0.85rem; color: #065f46; display: flex; align-items: center; gap: 4px;">
+                                🗺️ Inserir Rota Completa:
+                            </label>
+                            <select id="quick-route-select" style="flex: 1; min-width: 220px; padding: 6px 10px; border-radius: 6px; border: 1px solid #a7f3d0; background: #ffffff; color: var(--text-primary); font-size: 0.85rem;">
+                                <option value="">-- Escolher Rota do Dia --</option>
+                                <option value="campinas">Mercados Solo Vivo Campinas (15 lojas - Quartas)</option>
+                                <option value="piracicaba_americana">Interior Piracicaba & Americana (13 lojas)</option>
+                                <option value="jundiai_itu_salto">Rotas Jundiaí - Itu & Salto (8 lojas)</option>
+                                <option value="jundiai_quinzenal">Jundiaí Quinzenal (5 lojas)</option>
+                                <option value="sorocaba_interior">Sorocaba Interior: Tatuí, Boituva, Porto Feliz, Cerquilho (8 lojas)</option>
+                                <option value="sorocaba_cidade">Sorocaba Cidade (6 lojas)</option>
+                            </select>
+                            <button type="button" id="btn-add-entire-route" class="btn-secondary btn-sm" style="font-size: 0.8rem; padding: 6px 12px; font-weight: 600;" title="Adiciona todas as lojas da rota de uma vez">
+                                ⚡ Adicionar Todas Lojas da Rota
+                            </button>
+                        </div>
+
                         <div class="form-row form-row-store">
                             <div class="form-group flex-2">
                                 <label for="store-input-name">Nome da Loja / Supermercado / Hortifruti</label>
-                                <input type="text" id="store-input-name" placeholder="Ex: Supermercado Pão de Açúcar, Hortifruti Oba...">
+                                <input type="text" id="store-input-name" list="registered-stores-datalist" placeholder="Digite para buscar: Oba, Savegnago, Delta, Sam's...">
+                                <datalist id="registered-stores-datalist"></datalist>
                             </div>
                             <div class="form-group">
                                 <label for="store-input-type">Tipo</label>
@@ -394,7 +414,8 @@
                                     <option value="Supermercado">Supermercado</option>
                                     <option value="Hortifruti">Hortifruti</option>
                                     <option value="Empório Natural">Empório Natural</option>
-                                    <option value="Atacarejo">Atacarejo</option>
+                                    <option value="Hipermercado">Hipermercado</option>
+                                    <option value="Restaurante Orgânico">Restaurante Orgânico</option>
                                     <option value="Outro">Outro</option>
                                 </select>
                             </div>
@@ -589,68 +610,89 @@
                 <header class="page-header">
                     <div>
                         <h2>Lojas Visitadas (Solo Vivo Produtos Orgânicos)</h2>
-                        <p class="subtitle">Histórico de supermercados, hortifrutis e empórios atendidos</p>
+                        <p class="subtitle">Gestão de roteiros, clientes parceiros e histórico de atendimentos</p>
                     </div>
-                    <div class="trip-filters">
+                    <div class="trip-filters" id="stores-history-filters" style="display:none;">
                         <input type="text" id="filter-stores-search" placeholder="🔍 Buscar loja ou cidade...">
                         <select id="filter-stores-type">
                             <option value="">Todos os tipos</option>
                             <option value="Supermercado">Supermercado</option>
                             <option value="Hortifruti">Hortifruti</option>
                             <option value="Empório Natural">Empório Natural</option>
-                            <option value="Atacarejo">Atacarejo</option>
+                            <option value="Hipermercado">Hipermercado</option>
+                            <option value="Restaurante Orgânico">Restaurante Orgânico</option>
                         </select>
                     </div>
                 </header>
 
-                <!-- Mini Stats das Lojas -->
-                <div class="stats-grid" style="margin-bottom: 1.5rem;">
-                    <div class="stat-card">
-                        <span class="stat-icon">🏪</span>
-                        <div class="stat-info">
-                            <span class="stat-value" id="stores-stat-total">0</span>
-                            <span class="stat-label">Total de Visitas</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">🛒</span>
-                        <div class="stat-info">
-                            <span class="stat-value" id="stores-stat-super">0</span>
-                            <span class="stat-label">Supermercados</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">🥬</span>
-                        <div class="stat-info">
-                            <span class="stat-value" id="stores-stat-horti">0</span>
-                            <span class="stat-label">Hortifrutis</span>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <span class="stat-icon">💼</span>
-                        <div class="stat-info">
-                            <span class="stat-value" id="stores-stat-orders">R$ 0,00</span>
-                            <span class="stat-label">Total em Pedidos</span>
-                        </div>
+                <!-- Barra de Abas: Rotas Cadastradas vs Histórico -->
+                <div class="stores-tab-bar">
+                    <button type="button" class="btn-tab active" id="tab-btn-stores-routes" data-tab="routes">
+                        🗺️ Rotas & Clientes Solo Vivo (6 Rotas / 55 Lojas)
+                    </button>
+                    <button type="button" class="btn-tab" id="tab-btn-stores-history" data-tab="history">
+                        📋 Histórico de Visitas Registradas
+                    </button>
+                </div>
+
+                <!-- Aba 1: Rotas e Clientes Solo Vivo Pré-Cadastrados -->
+                <div id="stores-routes-view">
+                    <div class="routes-grid" id="routes-cards-container">
+                        <!-- Gerado dinamicamente via stores-data.js -->
                     </div>
                 </div>
 
-                <div class="section-card">
-                    <table class="data-table" id="stores-table">
-                        <thead>
-                            <tr>
-                                <th>Data</th>
-                                <th>Loja / Cliente</th>
-                                <th>Tipo</th>
-                                <th>Cidade / Região</th>
-                                <th>Ação / Objetivo</th>
-                                <th>Valor do Pedido</th>
-                                <th>Viagem / Roteiro</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                    <p id="no-stores-msg" class="empty-msg" style="display:none;">Nenhuma loja visitada registrada ainda. Ao cadastrar uma viagem, adicione as lojas atendidas no dia!</p>
+                <!-- Aba 2: Histórico de Visitas Realizadas -->
+                <div id="stores-history-view" style="display:none;">
+                    <!-- Mini Stats das Lojas -->
+                    <div class="stats-grid" style="margin-bottom: 1.5rem;">
+                        <div class="stat-card">
+                            <span class="stat-icon">🏪</span>
+                            <div class="stat-info">
+                                <span class="stat-value" id="stores-stat-total">0</span>
+                                <span class="stat-label">Total de Visitas</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon">🛒</span>
+                            <div class="stat-info">
+                                <span class="stat-value" id="stores-stat-super">0</span>
+                                <span class="stat-label">Supermercados</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon">🥬</span>
+                            <div class="stat-info">
+                                <span class="stat-value" id="stores-stat-horti">0</span>
+                                <span class="stat-label">Hortifrutis</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-icon">💼</span>
+                            <div class="stat-info">
+                                <span class="stat-value" id="stores-stat-orders">R$ 0,00</span>
+                                <span class="stat-label">Total em Pedidos</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-card">
+                        <table class="data-table" id="stores-table">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Loja / Cliente</th>
+                                    <th>Tipo</th>
+                                    <th>Cidade / Região</th>
+                                    <th>Ação / Objetivo</th>
+                                    <th>Valor do Pedido</th>
+                                    <th>Viagem / Roteiro</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                        <p id="no-stores-msg" class="empty-msg" style="display:none;">Nenhuma loja visitada registrada ainda. Ao cadastrar uma viagem, adicione as lojas atendidas no dia!</p>
+                    </div>
                 </div>
             </section>
 
@@ -856,6 +898,9 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <script src="firebase-config.js"></script>
+
+    <!-- Catálogo de Lojas e Rotas Solo Vivo -->
+    <script src="stores-data.js"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script src="app.js"></script>

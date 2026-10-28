@@ -956,6 +956,7 @@
         // Reset stores
         currentTripStores = [];
         renderTripStoresChips();
+        populateRegisteredStoresDatalist();
 
         // Reset expenses & tolls
         currentTripExpenses = [];
@@ -1236,7 +1237,26 @@
     // ============================
     //  LOJAS VISITADAS (SOLO VIVO)
     // ============================
+    let currentStoresTab = 'routes'; // 'routes' ou 'history'
+
+    function getStoreBadgeClass(type) {
+        if (type === 'Hortifruti') return 'badge-horti';
+        if (type === 'Empório Natural' || type === 'Produtos Naturais') return 'badge-emporio';
+        if (type === 'Hipermercado' || type === 'Atacarejo') return 'badge-atacado';
+        return 'badge-super';
+    }
+
+    function populateRegisteredStoresDatalist() {
+        const datalist = document.getElementById('registered-stores-datalist');
+        if (!datalist || !window.SOLO_VIVO_CATALOG) return;
+        datalist.innerHTML = window.SOLO_VIVO_CATALOG.map(s => 
+            `<option value="${escapeHtml(s.name)}">${escapeHtml(s.routeName)} - ${escapeHtml(s.city)} (${escapeHtml(s.type)})</option>`
+        ).join('');
+    }
+
     function bindStoresEvents() {
+        populateRegisteredStoresDatalist();
+
         const btnAdd = document.getElementById('btn-add-store');
         if (btnAdd) {
             btnAdd.addEventListener('click', () => {
@@ -1269,11 +1289,186 @@
             });
         }
 
-        // Filters in Stores Page
+        // Autocomplete listener: quando o usuário seleciona ou digita da lista oficial
+        const nameInput = document.getElementById('store-input-name');
+        if (nameInput) {
+            nameInput.addEventListener('input', () => {
+                const val = nameInput.value.trim().toLowerCase();
+                if (!val || !window.SOLO_VIVO_CATALOG) return;
+                const matched = window.SOLO_VIVO_CATALOG.find(c => c.name.toLowerCase() === val);
+                if (matched) {
+                    const typeInput = document.getElementById('store-input-type');
+                    if (typeInput && matched.type) {
+                        for (let opt of typeInput.options) {
+                            if (opt.value.toLowerCase().includes(matched.type.toLowerCase()) || matched.type.toLowerCase().includes(opt.value.toLowerCase())) {
+                                typeInput.value = opt.value;
+                                break;
+                            }
+                        }
+                    }
+                    const destInput = document.getElementById('trip-dest');
+                    if (destInput && !destInput.value && matched.city) {
+                        destInput.value = matched.city;
+                    }
+                }
+            });
+        }
+
+        // Botão para adicionar rota completa do dia de uma vez
+        const btnAddRoute = document.getElementById('btn-add-entire-route');
+        if (btnAddRoute) {
+            btnAddRoute.addEventListener('click', () => {
+                const routeSelect = document.getElementById('quick-route-select');
+                const rId = routeSelect ? routeSelect.value : '';
+                if (!rId) {
+                    showToast('Selecione uma rota no campo ao lado primeiro!', true);
+                    return;
+                }
+
+                const route = (window.SOLO_VIVO_ROUTES || []).find(r => r.id === rId);
+                if (!route) return;
+
+                let addedCount = 0;
+                route.stores.forEach(s => {
+                    if (!currentTripStores.some(cs => cs.name === s.name)) {
+                        currentTripStores.push({
+                            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+                            name: s.name,
+                            type: s.type,
+                            status: 'Pedido Realizado',
+                            orderValue: 0
+                        });
+                        addedCount++;
+                    }
+                });
+
+                const destInput = document.getElementById('trip-dest');
+                if (destInput && (!destInput.value || destInput.value.trim() === '')) {
+                    destInput.value = route.city || route.name;
+                }
+
+                renderTripStoresChips();
+                showToast(`⚡ ${addedCount} lojas da rota "${route.name}" adicionadas ao seu roteiro!`);
+            });
+        }
+
+        // Alternância de Abas na Página de Lojas (Rotas Cadastradas vs Histórico)
+        const tabRoutes = document.getElementById('tab-btn-stores-routes');
+        const tabHistory = document.getElementById('tab-btn-stores-history');
+
+        if (tabRoutes && tabHistory) {
+            tabRoutes.addEventListener('click', () => {
+                currentStoresTab = 'routes';
+                tabRoutes.classList.add('active');
+                tabHistory.classList.remove('active');
+                const routesView = document.getElementById('stores-routes-view');
+                const historyView = document.getElementById('stores-history-view');
+                const filters = document.getElementById('stores-history-filters');
+                if (routesView) routesView.style.display = 'block';
+                if (historyView) historyView.style.display = 'none';
+                if (filters) filters.style.display = 'none';
+                renderCatalogRoutes();
+            });
+
+            tabHistory.addEventListener('click', () => {
+                currentStoresTab = 'history';
+                tabHistory.classList.add('active');
+                tabRoutes.classList.remove('active');
+                const routesView = document.getElementById('stores-routes-view');
+                const historyView = document.getElementById('stores-history-view');
+                const filters = document.getElementById('stores-history-filters');
+                if (routesView) routesView.style.display = 'none';
+                if (historyView) historyView.style.display = 'block';
+                if (filters) filters.style.display = 'flex';
+                renderStoresHistoryTable();
+            });
+        }
+
+        // Filtros da tabela de histórico
         const searchInput = document.getElementById('filter-stores-search');
         const typeSelect = document.getElementById('filter-stores-type');
-        if (searchInput) searchInput.addEventListener('input', renderStoresPage);
-        if (typeSelect) typeSelect.addEventListener('change', renderStoresPage);
+        if (searchInput) searchInput.addEventListener('input', renderStoresHistoryTable);
+        if (typeSelect) typeSelect.addEventListener('change', renderStoresHistoryTable);
+    }
+
+    function startTripWithRoute(routeId) {
+        if (!window.SOLO_VIVO_ROUTES) return;
+        const route = window.SOLO_VIVO_ROUTES.find(r => r.id === routeId);
+        if (!route) return;
+
+        showPage('new-trip');
+        prepareNewTripForm();
+
+        const destInput = document.getElementById('trip-dest');
+        if (destInput) destInput.value = route.city || route.name;
+
+        const purposeInput = document.getElementById('trip-purpose');
+        if (purposeInput) purposeInput.value = `Atendimento Representação Solo Vivo: ${route.name}`;
+
+        const quickSelect = document.getElementById('quick-route-select');
+        if (quickSelect) quickSelect.value = route.id;
+
+        // Pré-carrega todas as lojas da rota na viagem
+        currentTripStores = route.stores.map(s => ({
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+            name: s.name,
+            type: s.type,
+            status: 'Pedido Realizado',
+            orderValue: 0
+        }));
+
+        renderTripStoresChips();
+        showToast(`🚗 Viagem iniciada com as ${route.stores.length} lojas da rota "${route.name}"!`);
+    }
+
+    function renderCatalogRoutes() {
+        const container = document.getElementById('routes-cards-container');
+        if (!container || !window.SOLO_VIVO_ROUTES) return;
+
+        container.innerHTML = window.SOLO_VIVO_ROUTES.map(route => {
+            const storesHtml = route.stores.map(s => `
+                <div class="route-store-item">
+                    <div class="route-store-name">
+                        <span>${escapeHtml(s.name)}</span>
+                        <span class="route-store-city">📍 ${escapeHtml(s.city)}</span>
+                    </div>
+                    <div class="route-store-meta">
+                        <span class="badge-store-type ${getStoreBadgeClass(s.type)}">${escapeHtml(s.type)}</span>
+                        ${s.rating ? `<span class="store-rating-badge">★ ${s.rating}</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="route-card">
+                    <div class="route-card-header">
+                        <div>
+                            <h3 class="route-card-title">🚗 ${escapeHtml(route.name)}</h3>
+                            <span class="route-card-subtitle">${escapeHtml(route.subtitle || route.city)}</span>
+                        </div>
+                        <span class="route-badge-count">${route.stores.length} Lojas</span>
+                    </div>
+                    <div class="route-card-body">
+                        ${storesHtml}
+                    </div>
+                    <div class="route-actions">
+                        <a href="${route.mapsUrl}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-sm" style="flex: 1; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 4px;" title="Abrir lista oficial compartilhada no Google Maps">
+                            🗺️ Google Maps ↗️
+                        </a>
+                        <button type="button" class="btn-primary btn-sm btn-start-route-trip" data-route-id="${route.id}" style="flex: 1.3;">
+                            ⚡ Iniciar Viagem nesta Rota
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.btn-start-route-trip').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const rId = e.currentTarget.dataset.routeId;
+                startTripWithRoute(rId);
+            });
+        });
     }
 
     function renderTripStoresChips() {
@@ -1302,10 +1497,18 @@
     }
 
     function renderStoresPage() {
+        if (currentStoresTab === 'routes') {
+            renderCatalogRoutes();
+        } else {
+            renderStoresHistoryTable();
+        }
+    }
+
+    function renderStoresHistoryTable() {
         const search = (document.getElementById('filter-stores-search')?.value || '').toLowerCase();
         const typeFilter = document.getElementById('filter-stores-type')?.value || '';
 
-        // Extract all stores from all trips
+        // Extrai todas as lojas de todas as viagens
         let allStores = [];
         trips.forEach(t => {
             if (t.stores && Array.isArray(t.stores)) {
@@ -1320,7 +1523,7 @@
             }
         });
 
-        // Compute overall stats
+        // Estatísticas gerais
         let totalOrders = 0;
         let superCount = 0;
         let hortiCount = 0;
@@ -1340,7 +1543,7 @@
         const statOrdersEl = document.getElementById('stores-stat-orders');
         if (statOrdersEl) statOrdersEl.textContent = currency(totalOrders);
 
-        // Apply filters
+        // Aplica filtros
         let filtered = allStores;
         if (search) {
             filtered = filtered.filter(s => 
@@ -1373,11 +1576,7 @@
         if (table) table.style.display = '';
 
         tbody.innerHTML = filtered.map(s => {
-            let badgeClass = 'badge-super';
-            if (s.type === 'Hortifruti') badgeClass = 'badge-horti';
-            if (s.type === 'Empório Natural') badgeClass = 'badge-emporio';
-            if (s.type === 'Atacarejo') badgeClass = 'badge-atacado';
-
+            const badgeClass = getStoreBadgeClass(s.type);
             return `<tr>
                 <td>${fmtDate(s.tripDate)}</td>
                 <td><strong>${escapeHtml(s.name)}</strong></td>
