@@ -94,10 +94,10 @@
     }
 
     function deleteTripCloud(tripId) {
-        trips = trips.filter(t => t.id !== tripId);
+        trips = trips.filter(t => String(t.id) !== String(tripId));
         saveTripsLocal();
         if (db && isFirebaseReady) {
-            db.collection('trips').doc(tripId).delete().catch(err => {
+            db.collection('trips').doc(String(tripId)).delete().catch(err => {
                 console.error('Erro ao excluir viagem no Firestore:', err);
             });
         }
@@ -127,10 +127,10 @@
     }
 
     function deleteIncomeCloud(incomeId) {
-        incomes = incomes.filter(i => i.id !== incomeId);
+        incomes = incomes.filter(i => String(i.id) !== String(incomeId));
         saveIncomesLocal();
         if (db && isFirebaseReady) {
-            db.collection('incomes').doc(incomeId).delete().catch(err => {
+            db.collection('incomes').doc(String(incomeId)).delete().catch(err => {
                 console.error('Erro ao excluir entrada no Firestore:', err);
             });
         }
@@ -720,6 +720,7 @@
         const items = [];
         periodIncomes.forEach(i => {
             items.push({
+                id: i.id,
                 type: 'income',
                 date: i.date,
                 title: i.category + (i.description ? ` (${i.description})` : ''),
@@ -737,6 +738,7 @@
                 : '-';
 
             items.push({
+                id: t.id,
                 type: 'trip',
                 date: t.date,
                 title: `${route} ${t.purpose ? '- ' + t.purpose : ''}`,
@@ -749,11 +751,11 @@
         items.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
         if (items.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:2rem;">Nenhum lançamento no período selecionado.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:2rem;">Nenhum lançamento no período selecionado.</td></tr>';
             return;
         }
 
-        tbody.innerHTML = items.slice(0, 15).map(item => `
+        tbody.innerHTML = items.slice(0, 25).map(item => `
             <tr>
                 <td>${fmtDate(item.date)}</td>
                 <td>
@@ -767,8 +769,41 @@
                 <td class="${item.type === 'income' ? 'text-income' : 'text-expense'}">
                     ${item.type === 'income' ? '+' : '-'} ${currency(item.amount)}
                 </td>
+                <td class="actions">
+                    <button class="btn-icon btn-period-edit" data-type="${item.type}" data-id="${item.id}" title="Editar">✏️</button>
+                    <button class="btn-icon btn-period-del" data-type="${item.type}" data-id="${item.id}" title="Excluir">🗑️</button>
+                </td>
             </tr>
         `).join('');
+
+        tbody.querySelectorAll('.btn-period-edit').forEach(b => {
+            b.addEventListener('click', () => {
+                if (b.dataset.type === 'trip') {
+                    editTrip(b.dataset.id);
+                } else {
+                    editIncome(b.dataset.id);
+                }
+            });
+        });
+
+        tbody.querySelectorAll('.btn-period-del').forEach(b => {
+            b.addEventListener('click', () => {
+                const id = b.dataset.id;
+                const isTrip = b.dataset.type === 'trip';
+                showConfirm(isTrip ? 'Excluir Viagem' : 'Excluir Entrada', 'Tem certeza que deseja excluir este lançamento?', () => {
+                    if (isTrip) {
+                        deleteTripCloud(id);
+                        showToast('Viagem excluída com sucesso.');
+                    } else {
+                        deleteIncomeCloud(id);
+                        showToast('Entrada excluída com sucesso.');
+                    }
+                    renderDashboard();
+                    renderAllTripsTable();
+                    if (typeof renderStoresPage === 'function') renderStoresPage();
+                });
+            });
+        });
     }
 
     // ============================
@@ -886,11 +921,12 @@
 
         tbody.querySelectorAll('.btn-del-income').forEach(b => {
             b.addEventListener('click', () => {
+                const incId = b.dataset.id;
                 showConfirm('Excluir Entrada', 'Deseja excluir esta entrada?', () => {
-                    deleteIncomeCloud(b.dataset.id);
+                    deleteIncomeCloud(incId);
                     renderIncomesTable();
                     renderDashboard();
-                    showToast('Entrada excluída.');
+                    showToast('Entrada excluída com sucesso.');
                 });
             });
         });
@@ -922,6 +958,22 @@
             showPage('trips');
         });
 
+        const btnDelTripForm = document.getElementById('btn-delete-current-trip');
+        if (btnDelTripForm) {
+            btnDelTripForm.addEventListener('click', () => {
+                const id = document.getElementById('trip-id').value;
+                if (!id) return;
+                showConfirm('Excluir Viagem', 'Tem certeza que deseja excluir esta viagem?', () => {
+                    deleteTripCloud(id);
+                    showPage('trips');
+                    renderAllTripsTable();
+                    renderDashboard();
+                    if (typeof renderStoresPage === 'function') renderStoresPage();
+                    showToast('Viagem excluída com sucesso.');
+                });
+            });
+        }
+
         // Live calculation triggers (KM, Preços, Desgaste e Horários)
         [
             'trip-km', 'trip-fuel-price', 'trip-km-per-liter', 'trip-wear-cost',
@@ -939,6 +991,8 @@
         document.getElementById('trip-id').value = '';
         document.getElementById('form-trip-title').textContent = 'Nova Viagem de Trabalho';
         document.getElementById('btn-save-trip').textContent = '💾 Salvar Viagem';
+        const btnDelTrip = document.getElementById('btn-delete-current-trip');
+        if (btnDelTrip) btnDelTrip.style.display = 'none';
 
         document.getElementById('trip-date').value = new Date().toISOString().slice(0, 10);
         document.getElementById('trip-origin').value = settings.defaultOrigin || '';
@@ -1056,6 +1110,8 @@
         showPage('new-trip');
         document.getElementById('form-trip-title').textContent = 'Editar Viagem';
         document.getElementById('btn-save-trip').textContent = '💾 Atualizar Viagem';
+        const btnDelTrip = document.getElementById('btn-delete-current-trip');
+        if (btnDelTrip) btnDelTrip.style.display = 'inline-flex';
 
         document.getElementById('trip-id').value = trip.id;
         document.getElementById('trip-date').value = trip.date;
@@ -1183,11 +1239,13 @@
 
         tbody.querySelectorAll('.btn-del-trip').forEach(b => {
             b.addEventListener('click', () => {
+                const tripId = b.dataset.id;
                 showConfirm('Excluir Viagem', 'Tem certeza que deseja excluir esta viagem?', () => {
-                    deleteTripCloud(b.dataset.id);
+                    deleteTripCloud(tripId);
                     renderAllTripsTable();
                     renderDashboard();
-                    showToast('Viagem excluída.');
+                    if (typeof renderStoresPage === 'function') renderStoresPage();
+                    showToast('Viagem excluída com sucesso.');
                 });
             });
         });
@@ -2220,8 +2278,11 @@
     function bindModal() {
         document.getElementById('modal-cancel').addEventListener('click', hideModal);
         document.getElementById('modal-confirm').addEventListener('click', () => {
+            const cb = modalCallback;
             hideModal();
-            if (modalCallback) modalCallback();
+            if (typeof cb === 'function') {
+                cb();
+            }
         });
     }
 
