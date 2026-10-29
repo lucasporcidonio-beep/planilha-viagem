@@ -22,19 +22,40 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Mobile Header (Barra Superior para Celulares) -->
+    <header class="mobile-header">
+        <button id="btn-open-sidebar" class="btn-mobile-menu" aria-label="Abrir menu lateral">
+            <span>☰</span>
+        </button>
+        <div class="mobile-header-brand">
+            <span class="mobile-logo-icon">🚗</span>
+            <span class="mobile-brand-title">ViagemControl</span>
+        </div>
+        <div id="mobile-cloud-status-badge" class="cloud-status-badge mobile-badge clickable" title="Clique para ver status ou configurar regras da nuvem">
+            <span class="cloud-dot connecting"></span>
+            <span id="mobile-cloud-status-text">Nuvem...</span>
+        </div>
+    </header>
+
+    <!-- Fundo escuro quando a gaveta do menu abre no celular -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
     <div class="app-container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <div class="logo">
-                <span class="logo-icon">🚗</span>
-                <div class="logo-text">
-                    <h1>ViagemControl</h1>
-                    <span class="logo-sub">Gestão de Viagens</span>
+        <!-- Sidebar / Menu Lateral (Gaveta no Mobile) -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">🚗</span>
+                    <div class="logo-text">
+                        <h1>ViagemControl</h1>
+                        <span class="logo-sub">Gestão de Viagens</span>
+                    </div>
                 </div>
+                <button id="btn-close-sidebar" class="btn-close-sidebar" aria-label="Fechar menu">✕</button>
             </div>
             
             <!-- Cloud Firebase Status Indicator -->
-            <div id="cloud-status-badge" class="cloud-status-badge">
+            <div id="cloud-status-badge" class="cloud-status-badge clickable" title="Clique para ver status ou instruções de liberação da nuvem">
                 <span class="cloud-dot connecting"></span>
                 <span id="cloud-status-text">Conectando Firebase...</span>
             </div>
@@ -917,6 +938,82 @@
                 </fieldset>
             </section>
         </main>
+    </div>
+
+    <!-- Mobile Bottom Navigation Bar (Barra de Navegação Inferior para Celulares) -->
+    <nav class="mobile-bottom-nav" aria-label="Navegação rápida mobile">
+        <button class="mobile-bottom-nav-btn active" data-page="dashboard" title="Dashboard">
+            <span class="bottom-icon">📊</span>
+            <span class="bottom-text">Início</span>
+        </button>
+        <button class="mobile-bottom-nav-btn" data-page="new-trip" title="Nova Viagem">
+            <span class="bottom-icon">➕</span>
+            <span class="bottom-text">Viagem</span>
+        </button>
+        <button class="mobile-bottom-nav-btn" data-page="stores" title="Lojas Solo Vivo">
+            <span class="bottom-icon">🏪</span>
+            <span class="bottom-text">Lojas</span>
+        </button>
+        <button class="mobile-bottom-nav-btn" data-page="trips" title="Viagens Realizadas">
+            <span class="bottom-icon">📋</span>
+            <span class="bottom-text">Viagens</span>
+        </button>
+        <button id="btn-bottom-menu-more" class="mobile-bottom-nav-btn" title="Mais opções">
+            <span class="bottom-icon">☰</span>
+            <span class="bottom-text">Mais</span>
+        </button>
+    </nav>
+
+    <!-- Cloud Rules Modal (Instruções e Diagnóstico de Nuvem) -->
+    <div id="cloud-rules-modal" class="modal" style="display:none;">
+        <div class="modal-content modal-rules">
+            <div class="rules-modal-header">
+                <h3>☁️ Ativar Sincronização na Nuvem (Firebase)</h3>
+                <button type="button" class="btn-close-modal" id="btn-close-rules-modal" aria-label="Fechar">✕</button>
+            </div>
+            <div class="rules-modal-body">
+                <div class="rules-status-box" id="rules-status-box">
+                    <span class="status-indicator-icon" style="font-size: 1.5rem;">⚠️</span>
+                    <div>
+                        <strong>Regras de Segurança Bloqueadas</strong>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem;">O Firebase está conectado, mas o Google bloqueia leitura e gravação até você liberar as regras no painel. Sem isso, os dados não salvam em outros dispositivos.</p>
+                    </div>
+                </div>
+
+                <div class="rules-instructions">
+                    <h4 style="margin: 0.75rem 0 0.5rem 0; font-size: 0.95rem;">Passo a passo rápido (30 segundos):</h4>
+                    <ol class="rules-steps-list">
+                        <li>
+                            <span>1. Abra a aba de Regras do seu projeto Firebase:</span><br>
+                            <a href="https://console.firebase.google.com/project/controle-viagem-d2f9e/firestore/rules" target="_blank" rel="noopener noreferrer" class="btn-external-link">
+                                🔗 Abrir Regras do Firestore no Firebase Console ↗
+                            </a>
+                        </li>
+                        <li>
+                            <span>2. Substitua o texto que está na aba <strong>Rules</strong> por este:</span>
+                            <div class="code-container">
+                                <pre id="firebase-rules-code">rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}</pre>
+                                <button type="button" id="btn-copy-rules" class="btn-copy-code">📋 Copiar Código</button>
+                            </div>
+                        </li>
+                        <li>
+                            <span>3. Clique no botão azul <strong>"Publicar" (Publish)</strong> no Firebase Console.</span>
+                        </li>
+                    </ol>
+                    <p class="rules-note">💡 Assim que você clicar em Publicar, o indicador no topo ficará verde ("Nuvem Conectada") e todas as suas viagens e lojas serão sincronizadas automaticamente entre o celular e o computador!</p>
+                </div>
+            </div>
+            <div class="modal-actions" style="margin-top: 1.25rem;">
+                <button type="button" class="btn-primary" id="btn-confirm-rules-modal">Entendi / Já Publiquei</button>
+            </div>
+        </div>
     </div>
 
     <!-- Confirm Modal -->

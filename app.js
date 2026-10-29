@@ -49,6 +49,8 @@
         initYearSelects();
         initDefaultDates();
         bindNavigation();
+        bindMobileNavigation();
+        bindCloudStatusModal();
         bindViewSwitcher();
         bindTripForm();
         bindIncomeForm();
@@ -91,7 +93,7 @@
         saveTripsLocal();
         if (db && isFirebaseReady) {
             db.collection('trips').doc(trip.id).set(trip).catch(err => {
-                console.error('Erro ao salvar viagem no Firestore:', err);
+                handleFirebaseError(err, 'salvar viagem');
             });
         }
     }
@@ -101,7 +103,7 @@
         saveTripsLocal();
         if (db && isFirebaseReady) {
             db.collection('trips').doc(String(tripId)).delete().catch(err => {
-                console.error('Erro ao excluir viagem no Firestore:', err);
+                handleFirebaseError(err, 'excluir viagem');
             });
         }
     }
@@ -124,7 +126,7 @@
         saveIncomesLocal();
         if (db && isFirebaseReady) {
             db.collection('incomes').doc(income.id).set(income).catch(err => {
-                console.error('Erro ao salvar entrada no Firestore:', err);
+                handleFirebaseError(err, 'salvar entrada');
             });
         }
     }
@@ -134,7 +136,7 @@
         saveIncomesLocal();
         if (db && isFirebaseReady) {
             db.collection('incomes').doc(String(incomeId)).delete().catch(err => {
-                console.error('Erro ao excluir entrada no Firestore:', err);
+                handleFirebaseError(err, 'excluir entrada');
             });
         }
     }
@@ -159,7 +161,7 @@
         saveSettingsLocal();
         if (db && isFirebaseReady) {
             db.collection('settings').doc('global').set(st).catch(err => {
-                console.error('Erro ao salvar configurações no Firestore:', err);
+                handleFirebaseError(err, 'salvar configurações');
             });
         }
     }
@@ -167,6 +169,23 @@
     // ============================
     //  FIREBASE CLOUD LISTENERS
     // ============================
+    function handleFirebaseError(err, context = '') {
+        console.error(`Firebase [${context}]:`, err);
+        const errMsg = (err && (err.message || err.code || '')) + '';
+        const isPermission = err && (
+            err.code === 'permission-denied' ||
+            errMsg.includes('permission') ||
+            errMsg.includes('insufficient') ||
+            errMsg.includes('Missing or insufficient')
+        );
+
+        if (isPermission) {
+            updateCloudStatus('permission', '⚠️ Regras Bloqueadas (Clique)');
+        } else {
+            updateCloudStatus('error', 'Offline / Erro Nuvem');
+        }
+    }
+
     function initFirebaseSync() {
         if (typeof db === 'undefined' || !db) {
             updateCloudStatus('error', 'Nuvem Não Carregada');
@@ -185,7 +204,7 @@
             // Se o Firestore estava vazio e temos dados locais, faz o upload inicial
             if (remoteTrips.length === 0 && trips.length > 0) {
                 console.log('Sincronizando dados locais existentes para o Firestore...');
-                trips.forEach(t => db.collection('trips').doc(t.id).set(t));
+                trips.forEach(t => db.collection('trips').doc(t.id).set(t).catch(e => handleFirebaseError(e, 'upload viagem')));
             } else if (remoteTrips.length > 0) {
                 trips = remoteTrips;
                 saveTripsLocal();
@@ -193,8 +212,7 @@
             }
             updateCloudStatus('online', 'Nuvem Conectada');
         }, (error) => {
-            console.error('Erro na sincronização de viagens:', error);
-            updateCloudStatus('error', 'Offline / Erro Nuvem');
+            handleFirebaseError(error, 'viagens');
         });
 
         // 2. Escuta em tempo real de entradas (Dia 15)
@@ -205,14 +223,14 @@
             });
 
             if (remoteIncomes.length === 0 && incomes.length > 0) {
-                incomes.forEach(i => db.collection('incomes').doc(i.id).set(i));
+                incomes.forEach(i => db.collection('incomes').doc(i.id).set(i).catch(e => handleFirebaseError(e, 'upload entrada')));
             } else if (remoteIncomes.length > 0) {
                 incomes = remoteIncomes;
                 saveIncomesLocal();
                 refreshCurrentView();
             }
         }, (error) => {
-            console.error('Erro na sincronização de entradas:', error);
+            handleFirebaseError(error, 'entradas');
         });
 
         // 3. Escuta em tempo real de configurações
@@ -223,24 +241,66 @@
                 loadSettingsIntoForm();
                 refreshCurrentView();
             } else if (settings) {
-                db.collection('settings').doc('global').set(settings);
+                db.collection('settings').doc('global').set(settings).catch(e => handleFirebaseError(e, 'upload config'));
             }
         }, (error) => {
-            console.error('Erro na sincronização de configurações:', error);
+            handleFirebaseError(error, 'configurações');
         });
     }
 
     function updateCloudStatus(status, text) {
+        // Desktop / Sidebar badge
         const badge = document.getElementById('cloud-status-badge');
         const dot = badge ? badge.querySelector('.cloud-dot') : null;
         const txt = document.getElementById('cloud-status-text');
 
         if (dot) {
-            dot.className = 'cloud-dot';
-            if (status === 'connecting') dot.classList.add('connecting');
-            if (status === 'error') dot.classList.add('error');
+            dot.className = 'cloud-dot ' + (status !== 'online' ? status : '');
         }
         if (txt) txt.textContent = text;
+
+        // Mobile top bar badge
+        const mobileBadge = document.getElementById('mobile-cloud-status-badge');
+        const mobileDot = mobileBadge ? mobileBadge.querySelector('.cloud-dot') : null;
+        const mobileTxt = document.getElementById('mobile-cloud-status-text');
+
+        if (mobileDot) {
+            mobileDot.className = 'cloud-dot ' + (status !== 'online' ? status : '');
+        }
+        if (mobileTxt) {
+            if (status === 'online') mobileTxt.textContent = 'Nuvem OK';
+            else if (status === 'permission') mobileTxt.textContent = '⚠️ Bloqueado';
+            else if (status === 'connecting') mobileTxt.textContent = 'Conectando...';
+            else mobileTxt.textContent = 'Offline';
+        }
+
+        // Atualiza status box no modal de regras se existir
+        const rulesBox = document.getElementById('rules-status-box');
+        if (rulesBox) {
+            if (status === 'online') {
+                rulesBox.style.background = '#f0fdf4';
+                rulesBox.style.borderColor = '#86efac';
+                rulesBox.style.color = '#166534';
+                rulesBox.innerHTML = `
+                    <span class="status-indicator-icon" style="font-size: 1.5rem;">✅</span>
+                    <div>
+                        <strong>Nuvem Firebase Conectada e Operando!</strong>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem;">Todas as viagens, lojas e configurações estão sincronizando em tempo real com todos os seus dispositivos.</p>
+                    </div>
+                `;
+            } else if (status === 'permission') {
+                rulesBox.style.background = '#fffbeb';
+                rulesBox.style.borderColor = '#fde68a';
+                rulesBox.style.color = '#92400e';
+                rulesBox.innerHTML = `
+                    <span class="status-indicator-icon" style="font-size: 1.5rem;">⚠️</span>
+                    <div>
+                        <strong>Regras de Segurança Bloqueadas</strong>
+                        <p style="margin: 0.25rem 0 0 0; font-size: 0.85rem;">O Firebase está conectado, mas o Google bloqueou a gravação por falta de regras públicas. Siga os 3 passos abaixo para liberar em 30 segundos.</p>
+                    </div>
+                `;
+            }
+        }
     }
 
     function refreshCurrentView() {
@@ -291,7 +351,7 @@
     }
 
     // ============================
-    //  NAVIGATION
+    //  NAVIGATION & MOBILE DRAWER
     // ============================
     function bindNavigation() {
         document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -317,15 +377,122 @@
         }
     }
 
+    function bindMobileNavigation() {
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        const btnOpen = document.getElementById('btn-open-sidebar');
+        const btnClose = document.getElementById('btn-close-sidebar');
+        const btnMore = document.getElementById('btn-bottom-menu-more');
+
+        function toggleSidebar(open) {
+            if (!sidebar || !backdrop) return;
+            if (open) {
+                sidebar.classList.add('open');
+                backdrop.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            } else {
+                sidebar.classList.remove('open');
+                backdrop.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        if (btnOpen) btnOpen.addEventListener('click', () => toggleSidebar(true));
+        if (btnClose) btnClose.addEventListener('click', () => toggleSidebar(false));
+        if (backdrop) backdrop.addEventListener('click', () => toggleSidebar(false));
+        if (btnMore) btnMore.addEventListener('click', () => toggleSidebar(true));
+
+        // Botões de navegação rápida da barra inferior
+        document.querySelectorAll('.mobile-bottom-nav-btn[data-page]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                showPage(btn.dataset.page);
+                toggleSidebar(false);
+            });
+        });
+
+        // Fechar gaveta ao clicar em qualquer link da sidebar no celular
+        document.querySelectorAll('.sidebar .nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                toggleSidebar(false);
+            });
+        });
+    }
+
+    function bindCloudStatusModal() {
+        const modal = document.getElementById('cloud-rules-modal');
+        const badgeDesktop = document.getElementById('cloud-status-badge');
+        const badgeMobile = document.getElementById('mobile-cloud-status-badge');
+        const btnClose = document.getElementById('btn-close-rules-modal');
+        const btnConfirm = document.getElementById('btn-confirm-rules-modal');
+        const btnCopy = document.getElementById('btn-copy-rules');
+
+        function openModal() {
+            if (modal) modal.style.display = 'flex';
+        }
+        function closeModal() {
+            if (modal) modal.style.display = 'none';
+        }
+
+        if (badgeDesktop) badgeDesktop.addEventListener('click', openModal);
+        if (badgeMobile) badgeMobile.addEventListener('click', openModal);
+        if (btnClose) btnClose.addEventListener('click', closeModal);
+        if (btnConfirm) btnConfirm.addEventListener('click', closeModal);
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeModal();
+            });
+        }
+
+        if (btnCopy) {
+            btnCopy.addEventListener('click', async () => {
+                const code = `rules_version = '2';\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    match /{document=**} {\n      allow read, write: if true;\n    }\n  }\n}`;
+                try {
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(code);
+                    } else {
+                        const ta = document.createElement('textarea');
+                        ta.value = code;
+                        document.body.appendChild(ta);
+                        ta.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(ta);
+                    }
+                    const orig = btnCopy.textContent;
+                    btnCopy.textContent = 'Copiado! ✓';
+                    btnCopy.style.background = '#10b981';
+                    setTimeout(() => {
+                        btnCopy.textContent = orig;
+                        btnCopy.style.background = '';
+                    }, 2500);
+                } catch (e) {
+                    alert('Copie o código manualmente na caixa.');
+                }
+            });
+        }
+    }
+
     function showPage(pageId) {
         document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.mobile-bottom-nav-btn').forEach(b => b.classList.remove('active'));
 
         const targetPage = document.getElementById('page-' + pageId);
         const targetBtn = document.querySelector(`.nav-btn[data-page="${pageId}"]`);
+        const targetMobileBtn = document.querySelector(`.mobile-bottom-nav-btn[data-page="${pageId}"]`);
 
         if (targetPage) targetPage.classList.add('active');
         if (targetBtn) targetBtn.classList.add('active');
+        if (targetMobileBtn) targetMobileBtn.classList.add('active');
+
+        // Fecha a gaveta lateral no mobile se estiver aberta
+        const sidebar = document.getElementById('sidebar');
+        const backdrop = document.getElementById('sidebar-backdrop');
+        if (sidebar) sidebar.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('active');
+        document.body.style.overflow = '';
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
 
         if (pageId === 'dashboard') renderDashboard();
         if (pageId === 'incomes') renderIncomesTable();
