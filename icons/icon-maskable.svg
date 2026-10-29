@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="60%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="roadGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#064e3b" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#022c22" stop-opacity="0.7"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#022c22" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Full bleed for maskable safe-zone -->
+  <rect width="512" height="512" fill="url(#bgGrad)"/>
+
+  <!-- Scaled slightly down to 80% to fit within maskable safe-area circle -->
+  <g transform="translate(51.2, 51.2) scale(0.8)">
+    <path d="M 60 440 C 180 320, 240 260, 452 140" stroke="url(#roadGrad)" stroke-width="48" fill="none" stroke-linecap="round"/>
+    <path d="M 60 440 C 180 320, 240 260, 452 140" stroke="#a7f3d0" stroke-width="6" stroke-dasharray="24 20" fill="none" stroke-linecap="round" opacity="0.65"/>
+
+    <!-- Organic Pin -->
+    <g transform="translate(370, 110) scale(0.9)" filter="url(#shadow)">
+      <path d="M 0 -45 C 24 -45, 42 -27, 42 -3 C 42 28, 0 65, 0 65 C 0 65, -42 28, -42 -3 C -42 -27, -24 -45, 0 -45 Z" fill="#ffffff"/>
+      <circle cx="0" cy="-6" r="15" fill="#10b981"/>
+      <path d="M 0 -18 C 10 -18, 14 -8, 14 0 C 4 0, 0 -10, 0 -18 Z" fill="#34d399"/>
+    </g>
+
+    <!-- Car Symbol -->
+    <g filter="url(#shadow)" transform="translate(256, 305)">
+      <path d="M -155 35 C -155 25, -145 15, -135 12 L -95 10 C -70 -25, -45 -65, 10 -65 L 75 -65 C 105 -65, 125 -30, 138 10 L 145 12 C 155 15, 160 25, 160 35 L 160 55 C 160 62, 155 68, 148 68 L 135 68 C 135 48, 115 32, 95 32 C 75 32, 55 48, 55 68 L -55 68 C -55 48, -75 32, -95 32 C -115 32, -135 48, -135 68 L -148 68 C -155 68, -160 62, -160 55 Z" fill="#ffffff"/>
+      <path d="M -68 5 L -42 -45 C -20 -48, 0 -48, 15 -48 L 15 5 Z" fill="#065f46" opacity="0.85"/>
+      <path d="M 27 5 L 27 -48 C 55 -48, 80 -48, 92 -20 L 108 5 Z" fill="#065f46" opacity="0.85"/>
+      <path d="M 148 20 L 158 23 C 159 28, 157 32, 153 35 L 143 32 Z" fill="#fde047"/>
+      <path d="M -152 20 L -142 22 L -142 32 L -152 32 Z" fill="#f87171"/>
+      <g transform="translate(-95, 68)">
+        <circle cx="0" cy="0" r="30" fill="#0f172a"/>
+        <circle cx="0" cy="0" r="18" fill="#e2e8f0"/>
+        <circle cx="0" cy="0" r="9" fill="#10b981"/>
+      </g>
+      <g transform="translate(95, 68)">
+        <circle cx="0" cy="0" r="30" fill="#0f172a"/>
+        <circle cx="0" cy="0" r="18" fill="#e2e8f0"/>
+        <circle cx="0" cy="0" r="9" fill="#10b981"/>
+      </g>
+    </g>
+
+    <line x1="85" y1="365" x2="135" y2="365" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity="0.75"/>
+    <line x1="60" y1="385" x2="110" y2="385" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  </g>
+</svg>

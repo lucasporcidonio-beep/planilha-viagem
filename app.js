@@ -65,6 +65,9 @@
 
         // Inicia sincronização em nuvem com o Firebase Firestore
         initFirebaseSync();
+
+        // Registra Service Worker e suporte a instalação PWA
+        initPWA();
     }
 
     // ============================
@@ -2053,77 +2056,6 @@
     // ============================
     //  EXPORT & BACKUP
     // ============================
-    function bindSettingsForm() {
-        document.getElementById('settings-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            settings.carModel = document.getElementById('cfg-car-model').value.trim();
-            settings.kmPerLiter = parseFloat(document.getElementById('cfg-km-per-liter').value) || 10;
-            settings.fuelType = document.getElementById('cfg-fuel-type').value;
-            settings.fuelPrice = parseFloat(document.getElementById('cfg-fuel-price').value) || 5.80;
-            settings.defaultOrigin = document.getElementById('cfg-default-origin').value.trim();
-            settings.defaultIncomeAmount = parseFloat(document.getElementById('cfg-default-income-amount').value) || 0;
-            settings.defaultIncomeDesc = document.getElementById('cfg-default-income-desc').value.trim() || 'Adiantamento Viagens - Dia 15';
-
-            saveSettings();
-            showToast('Configurações salvas!');
-            renderDashboard();
-        });
-
-        // Botão para gerar entradas do dia 15 para todo o ano
-        document.getElementById('btn-generate-yearly-incomes').addEventListener('click', () => {
-            const amount = parseFloat(document.getElementById('cfg-default-income-amount').value) || settings.defaultIncomeAmount;
-            if (!amount || amount <= 0) {
-                showToast('Informe um valor padrão maior que zero!', true);
-                return;
-            }
-
-            const currentYear = new Date().getFullYear();
-            showConfirm(
-                'Gerar Entradas do Dia 15',
-                `Deseja gerar automaticamente 12 entradas (uma no dia 15 de cada mês de ${currentYear}) no valor de ${currency(amount)}?`,
-                () => {
-                    let createdCount = 0;
-                    for (let m = 1; m <= 12; m++) {
-                        const mPad = String(m).padStart(2, '0');
-                        const targetDate = `${currentYear}-${mPad}-15`;
-
-                        // Check if already exists for this exact day
-                        const alreadyExists = incomes.some(i => i.date === targetDate);
-                        if (!alreadyExists) {
-                            const newInc = {
-                                id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-                                date: targetDate,
-                                amount,
-                                category: 'Adiantamento Dia 15',
-                                description: settings.defaultIncomeDesc || 'Adiantamento Viagens - Dia 15',
-                                createdAt: new Date().toISOString()
-                            };
-                            incomes.push(newInc);
-                            saveIncomeCloud(newInc);
-                            createdCount++;
-                        }
-                    }
-                    saveIncomesLocal();
-                    renderDashboard();
-                    showToast(`${createdCount} entradas geradas com sucesso!`);
-                }
-            );
-        });
-    }
-
-    function loadSettingsIntoForm() {
-        document.getElementById('cfg-car-model').value = settings.carModel || '';
-        document.getElementById('cfg-km-per-liter').value = settings.kmPerLiter;
-        document.getElementById('cfg-fuel-type').value = settings.fuelType || 'Gasolina';
-        document.getElementById('cfg-fuel-price').value = settings.fuelPrice;
-        document.getElementById('cfg-default-origin').value = settings.defaultOrigin || '';
-        document.getElementById('cfg-default-income-amount').value = settings.defaultIncomeAmount || '';
-        document.getElementById('cfg-default-income-desc').value = settings.defaultIncomeDesc || '';
-    }
-
-    // ============================
-    //  EXPORT & BACKUP
-    // ============================
     function bindBackupAndExport() {
         // CSV Export
         document.getElementById('btn-export-csv').addEventListener('click', exportFullCSV);
@@ -2270,6 +2202,52 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
+    }
+
+    // ============================
+    //  PWA (SERVICE WORKER & INSTALAÇÃO MOBILE)
+    // ============================
+    let deferredInstallPrompt = null;
+
+    function initPWA() {
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then((reg) => {
+                        console.log('ViagemControl PWA ServiceWorker ativo:', reg.scope);
+                    })
+                    .catch((err) => {
+                        console.log('ServiceWorker PWA:', err);
+                    });
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            const btnInstall = document.getElementById('btn-install-app');
+            if (btnInstall) {
+                btnInstall.style.display = 'flex';
+                btnInstall.onclick = async () => {
+                    if (deferredInstallPrompt) {
+                        deferredInstallPrompt.prompt();
+                        const { outcome } = await deferredInstallPrompt.userChoice;
+                        if (outcome === 'accepted') {
+                            showToast('Aplicativo instalado no seu celular! 🎉');
+                        }
+                        deferredInstallPrompt = null;
+                        btnInstall.style.display = 'none';
+                    }
+                };
+            }
+        });
+
+        window.addEventListener('appinstalled', () => {
+            deferredInstallPrompt = null;
+            const btnInstall = document.getElementById('btn-install-app');
+            if (btnInstall) btnInstall.style.display = 'none';
+            showToast('ViagemControl instalado com sucesso na sua tela inicial! 📱');
+        });
     }
 
     // ============================
