@@ -957,6 +957,12 @@
         currentTripStores = [];
         renderTripStoresChips();
         populateRegisteredStoresDatalist();
+        const storeNameEl = document.getElementById('store-input-name');
+        if (storeNameEl) storeNameEl.value = '';
+        const storeCityEl = document.getElementById('store-input-city');
+        if (storeCityEl) storeCityEl.value = '';
+        const quickRouteEl = document.getElementById('quick-route-select');
+        if (quickRouteEl) quickRouteEl.value = '';
 
         // Reset expenses & tolls
         currentTripExpenses = [];
@@ -1243,6 +1249,9 @@
         if (type === 'Hortifruti') return 'badge-horti';
         if (type === 'Empório Natural' || type === 'Produtos Naturais') return 'badge-emporio';
         if (type === 'Hipermercado' || type === 'Atacarejo') return 'badge-atacado';
+        if (type === 'Prospecção' || type === 'Prospect') return 'badge-prospect';
+        if (type === 'Visita Comercial' || type === 'Visita') return 'badge-visita';
+        if (type === 'Restaurante Orgânico') return 'badge-restaurante';
         return 'badge-super';
     }
 
@@ -1261,35 +1270,59 @@
         if (btnAdd) {
             btnAdd.addEventListener('click', () => {
                 const nameInput = document.getElementById('store-input-name');
+                const cityInput = document.getElementById('store-input-city');
                 const typeInput = document.getElementById('store-input-type');
                 const statusInput = document.getElementById('store-input-status');
                 const orderInput = document.getElementById('store-input-order');
 
                 const name = nameInput.value.trim();
                 if (!name) {
-                    showToast('Informe o nome da loja ou supermercado!', true);
+                    showToast('Informe o nome do local, loja ou prospect!', true);
                     nameInput.focus();
                     return;
                 }
 
+                const city = (cityInput ? cityInput.value.trim() : '') || (document.getElementById('trip-dest')?.value.trim() || '');
+
                 currentTripStores.push({
                     id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
                     name,
+                    city,
                     type: typeInput.value,
                     status: statusInput.value,
                     orderValue: parseFloat(orderInput.value) || 0
                 });
 
                 nameInput.value = '';
+                if (cityInput) cityInput.value = '';
                 orderInput.value = '';
                 nameInput.focus();
 
                 renderTripStoresChips();
-                showToast(`Loja "${name}" adicionada ao roteiro!`);
+                showToast(`"${name}" adicionado ao roteiro da viagem!`);
             });
         }
 
-        // Autocomplete listener: quando o usuário seleciona ou digita da lista oficial
+        // Listener no seletor rápido para modo "Digitar Novo Local / Prospect Livre"
+        const routeSelect = document.getElementById('quick-route-select');
+        if (routeSelect) {
+            routeSelect.addEventListener('change', () => {
+                if (routeSelect.value === 'custom') {
+                    const nameInput = document.getElementById('store-input-name');
+                    const typeInput = document.getElementById('store-input-type');
+                    const statusInput = document.getElementById('store-input-status');
+                    if (nameInput) {
+                        nameInput.value = '';
+                        nameInput.focus();
+                    }
+                    if (typeInput) typeInput.value = 'Prospecção';
+                    if (statusInput) statusInput.value = 'Prospecção (Novo Cliente)';
+                    showToast('Modo livre ativado: digite o nome do prospect ou loja nos campos!');
+                }
+            });
+        }
+
+        // Autocomplete listener: quando o usuário seleciona da lista oficial ou digita
         const nameInput = document.getElementById('store-input-name');
         if (nameInput) {
             nameInput.addEventListener('input', () => {
@@ -1306,6 +1339,10 @@
                             }
                         }
                     }
+                    const cityInput = document.getElementById('store-input-city');
+                    if (cityInput && matched.city) {
+                        cityInput.value = matched.city;
+                    }
                     const destInput = document.getElementById('trip-dest');
                     if (destInput && !destInput.value && matched.city) {
                         destInput.value = matched.city;
@@ -1318,10 +1355,17 @@
         const btnAddRoute = document.getElementById('btn-add-entire-route');
         if (btnAddRoute) {
             btnAddRoute.addEventListener('click', () => {
-                const routeSelect = document.getElementById('quick-route-select');
-                const rId = routeSelect ? routeSelect.value : '';
+                const rSelect = document.getElementById('quick-route-select');
+                const rId = rSelect ? rSelect.value : '';
                 if (!rId) {
                     showToast('Selecione uma rota no campo ao lado primeiro!', true);
+                    return;
+                }
+
+                if (rId === 'custom') {
+                    const nInput = document.getElementById('store-input-name');
+                    if (nInput) nInput.focus();
+                    showToast('Digite o nome do local ou prospect nos campos abaixo!', true);
                     return;
                 }
 
@@ -1334,6 +1378,7 @@
                         currentTripStores.push({
                             id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
                             name: s.name,
+                            city: s.city || route.city || '',
                             type: s.type,
                             status: 'Pedido Realizado',
                             orderValue: 0
@@ -1476,16 +1521,20 @@
         if (!container) return;
 
         if (currentTripStores.length === 0) {
-            container.innerHTML = '<span class="empty-hint" id="no-stores-added-hint">Nenhuma loja adicionada nesta viagem ainda.</span>';
+            container.innerHTML = '<span class="empty-hint" id="no-stores-added-hint">Nenhum local adicionado nesta viagem ainda. Digite livremente acima ou selecione uma rota.</span>';
             return;
         }
 
-        container.innerHTML = currentTripStores.map((s, idx) => `
-            <div class="store-chip">
-                <span><strong>${escapeHtml(s.name)}</strong> (${s.type} - ${s.status}${s.orderValue > 0 ? ` | Pedido: ${currency(s.orderValue)}` : ''})</span>
-                <button type="button" class="store-chip-remove" data-idx="${idx}" title="Remover loja">&times;</button>
-            </div>
-        `).join('');
+        container.innerHTML = currentTripStores.map((s, idx) => {
+            const cityBadge = s.city ? `<span style="font-size:0.75rem; color:#047857; background:#d1fae5; padding:2px 6px; border-radius:4px; font-weight:600; margin-right:4px;">📍 ${escapeHtml(s.city)}</span>` : '';
+            const orderBadge = s.orderValue > 0 ? ` | Pedido: ${currency(s.orderValue)}` : '';
+            return `
+                <div class="store-chip">
+                    <span><strong>${escapeHtml(s.name)}</strong> ${cityBadge}(${escapeHtml(s.type)} - ${escapeHtml(s.status)}${orderBadge})</span>
+                    <button type="button" class="store-chip-remove" data-idx="${idx}" title="Remover local">&times;</button>
+                </div>
+            `;
+        }).join('');
 
         container.querySelectorAll('.store-chip-remove').forEach(b => {
             b.addEventListener('click', (e) => {
@@ -1577,11 +1626,12 @@
 
         tbody.innerHTML = filtered.map(s => {
             const badgeClass = getStoreBadgeClass(s.type);
+            const locationText = s.city ? (s.tripRoute && !s.tripRoute.includes(s.city) ? `${s.city} • ${s.tripRoute}` : s.city) : (s.tripRoute || '-');
             return `<tr>
                 <td>${fmtDate(s.tripDate)}</td>
                 <td><strong>${escapeHtml(s.name)}</strong></td>
                 <td><span class="badge-store-type ${badgeClass}">${escapeHtml(s.type)}</span></td>
-                <td>${escapeHtml(s.tripRoute)}</td>
+                <td>${escapeHtml(locationText)}</td>
                 <td><span style="font-weight:600;color:#065f46;">${escapeHtml(s.status)}</span></td>
                 <td style="font-weight:600;color:var(--primary);">${s.orderValue > 0 ? currency(s.orderValue) : '-'}</td>
                 <td><small style="color:var(--text-muted);">${escapeHtml(s.tripPurpose || '-')}</small></td>

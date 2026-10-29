@@ -380,22 +380,23 @@
 
                     <!-- Lojas / Clientes Visitados (Solo Vivo) -->
                     <fieldset class="form-section highlight-border">
-                        <legend>🏪 Lojas Visitadas no Dia (Solo Vivo Produtos Orgânicos)</legend>
-                        <p class="section-desc">Selecione uma rota pré-cadastrada ou busque lojas parceiras (Campinas, Piracicaba, Americana, Jundiaí, Sorocaba):</p>
+                        <legend>🏪 Lojas & Lugares Visitados (Solo Vivo Produtos Orgânicos)</legend>
+                        <p class="section-desc">Selecione uma rota pré-cadastrada ou digite livremente qualquer cliente, prospect, visita ou nova região:</p>
                         
-                        <!-- Barra Rápida de Rotas Pré-Cadastradas -->
+                        <!-- Barra Rápida de Rotas Pré-Cadastradas ou Digitação Livre -->
                         <div class="store-quick-toolbar">
                             <label for="quick-route-select" style="font-weight: 600; font-size: 0.85rem; color: #065f46; display: flex; align-items: center; gap: 4px;">
-                                🗺️ Inserir Rota Completa:
+                                🗺️ Selecionar Rota ou Novo Local:
                             </label>
                             <select id="quick-route-select" style="flex: 1; min-width: 220px; padding: 6px 10px; border-radius: 6px; border: 1px solid #a7f3d0; background: #ffffff; color: var(--text-primary); font-size: 0.85rem;">
-                                <option value="">-- Escolher Rota do Dia --</option>
+                                <option value="">-- Escolher Rota do Dia ou Digitar Novo Local --</option>
                                 <option value="campinas">Mercados Solo Vivo Campinas (15 lojas - Quartas)</option>
                                 <option value="piracicaba_americana">Interior Piracicaba & Americana (13 lojas)</option>
                                 <option value="jundiai_itu_salto">Rotas Jundiaí - Itu & Salto (8 lojas)</option>
                                 <option value="jundiai_quinzenal">Jundiaí Quinzenal (5 lojas)</option>
                                 <option value="sorocaba_interior">Sorocaba Interior: Tatuí, Boituva, Porto Feliz, Cerquilho (8 lojas)</option>
                                 <option value="sorocaba_cidade">Sorocaba Cidade (6 lojas)</option>
+                                <option value="custom">✍️ Digitar Novo Local / Prospect / Outra Região (Livre)</option>
                             </select>
                             <button type="button" id="btn-add-entire-route" class="btn-secondary btn-sm" style="font-size: 0.8rem; padding: 6px 12px; font-weight: 600;" title="Adiciona todas as lojas da rota de uma vez">
                                 ⚡ Adicionar Todas Lojas da Rota
@@ -404,28 +405,36 @@
 
                         <div class="form-row form-row-store">
                             <div class="form-group flex-2">
-                                <label for="store-input-name">Nome da Loja / Supermercado / Hortifruti</label>
-                                <input type="text" id="store-input-name" list="registered-stores-datalist" placeholder="Digite para buscar: Oba, Savegnago, Delta, Sam's...">
+                                <label for="store-input-name">Nome do Lugar / Loja / Prospect (Livre)</label>
+                                <input type="text" id="store-input-name" list="registered-stores-datalist" placeholder="Digite livremente (ex: Supermercado X, Prospect Y)...">
                                 <datalist id="registered-stores-datalist"></datalist>
                             </div>
                             <div class="form-group">
-                                <label for="store-input-type">Tipo</label>
+                                <label for="store-input-city">Cidade / Região</label>
+                                <input type="text" id="store-input-city" placeholder="Ex: Campinas, Limeira, Paulínia...">
+                            </div>
+                            <div class="form-group">
+                                <label for="store-input-type">Tipo / Categoria</label>
                                 <select id="store-input-type">
                                     <option value="Supermercado">Supermercado</option>
                                     <option value="Hortifruti">Hortifruti</option>
+                                    <option value="Prospecção">Prospecção (Novo)</option>
+                                    <option value="Visita Comercial">Visita / Reunião</option>
                                     <option value="Empório Natural">Empório Natural</option>
                                     <option value="Hipermercado">Hipermercado</option>
                                     <option value="Restaurante Orgânico">Restaurante Orgânico</option>
-                                    <option value="Outro">Outro</option>
+                                    <option value="Outro">Outro (Livre)</option>
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="store-input-status">Ação Realizada</label>
+                                <label for="store-input-status">Ação / Objetivo</label>
                                 <select id="store-input-status">
                                     <option value="Pedido Realizado">Pedido Realizado</option>
-                                    <option value="Reposição / Abastecimento">Reposição / Abastecimento</option>
                                     <option value="Prospecção (Novo Cliente)">Prospecção (Novo)</option>
-                                    <option value="Visita de Relacionamento">Relacionamento / Cobrança</option>
+                                    <option value="Visita de Relacionamento">Visita / Relacionamento</option>
+                                    <option value="Reposição / Abastecimento">Reposição / Abastecimento</option>
+                                    <option value="Cobrança / Financeiro">Cobrança / Financeiro</option>
+                                    <option value="Outro">Outro</option>
                                 </select>
                             </div>
                             <div class="form-group">
@@ -434,7 +443,7 @@
                             </div>
                             <div class="form-group store-btn-wrap">
                                 <button type="button" id="btn-add-store" class="btn-primary btn-sm" style="height: 40px; margin-top: auto;">
-                                    ➕ Adicionar Loja
+                                    ➕ Adicionar
                                 </button>
                             </div>
                         </div>

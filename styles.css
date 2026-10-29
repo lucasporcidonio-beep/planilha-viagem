@@ -944,9 +944,15 @@ nav {
 
 .form-row-store {
     display: grid;
-    grid-template-columns: 2fr 1fr 1.2fr 1fr auto;
+    grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 1fr auto;
     gap: 0.75rem;
     align-items: flex-start;
+}
+
+@media (max-width: 992px) {
+    .form-row-store {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
 .stores-badge-list {
@@ -1130,6 +1136,9 @@ nav {
 .badge-horti { background: #dcfce7; color: #15803d; }
 .badge-emporio { background: #fef3c7; color: #b45309; }
 .badge-atacado { background: #f3e8ff; color: #7e22ce; }
+.badge-prospect { background: #e0e7ff; color: #3730a3; font-weight: 700; }
+.badge-visita { background: #fef08a; color: #854d0e; }
+.badge-restaurante { background: #fed7aa; color: #9a3412; }
 
 /* ===== Alert Banner (Manutenção Preventiva) ===== */
 .alert-banner {
